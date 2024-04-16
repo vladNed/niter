@@ -1,0 +1,43 @@
+package routes
+
+import (
+	"net/http"
+
+	"github.com/gorilla/websocket"
+	"github.com/indexone/signalling-server/internal/hub"
+	"github.com/indexone/signalling-server/internal/logging"
+	"github.com/indexone/signalling-server/internal/router"
+)
+
+var (
+	upgrader   = websocket.Upgrader{
+		CheckOrigin: checkOrigin,
+	}
+	logger     = logging.GetLogger(nil)
+	HttpRouter = router.NewHttpRouter("/api/v1", []router.Route{
+		{
+			Path:        "/ping/",
+			Method:      http.MethodGet,
+			HandlerFunc: ping,
+		},
+	})
+	WSRouter = router.NewWsRouter("/ws/v1", []router.Route{
+		{
+			Path: "/",
+			HandlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				serveWebSocket(hub.HubInstance, w, r)
+			},
+		},
+	})
+)
+
+func ping(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("pong"))
+}
+
+
+func checkOrigin(r *http.Request) bool {
+	// TODO: Check origin
+	return true
+}
