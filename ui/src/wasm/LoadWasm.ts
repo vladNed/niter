@@ -11,7 +11,6 @@ export const LoadWasm = (props: any) => {
       const goWasm = new window.Go();
       const res = await WebAssembly.instantiateStreaming(fetch('wasm/niter.wasm'), goWasm.importObject);
       goWasm.run(res.instance);
-      wasmGenerateWallet();
       setWasmLoaded(true);
     };
 

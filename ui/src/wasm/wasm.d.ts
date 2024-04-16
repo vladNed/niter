@@ -1,6 +1,6 @@
 
+
 /**
- * Generate a new monero wallet
- * @returns void
+ * The build version of the wasm module.
  */
-declare function wasmGenerateWallet(): void;
+declare const wasmVersion;

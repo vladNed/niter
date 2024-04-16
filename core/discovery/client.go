@@ -18,7 +18,9 @@ type WSClient struct {
 }
 
 func NewWSClient() (*WSClient, error) {
-	conn, _, err := websocket.Dial(context.Background(), SIGNALLING_SERVER, nil)
+	conn, _, err := websocket.Dial(context.Background(), SIGNALLING_SERVER, &websocket.DialOptions{
+		
+	})
 	if err != nil {
 		log.Println("Error dialing websocket server:", err)
 		return nil, err

@@ -54,14 +54,7 @@ func (c *Client) handleChannelSubscribe(message []byte) {
 	}
 	c.channels = channelSubscribeRequest.Channels
 	logger.Info("Client subscribed to channels: ", channelSubscribeRequest.Channels)
-	response := MessageResponse{Status: WS_OK_STATUS, Details: "Subscribed to channels"}
-	responsePayload, err := parseMessageResponse(response)
-	if err != nil {
-		logger.Error("Error parsing channel response: ", err)
-		return
-	}
 	c.state = Registered
-	c.send <- responsePayload
 }
 
 func (c *Client) handleMessage(message []byte) {
@@ -76,18 +69,11 @@ func (c *Client) handleMessage(message []byte) {
 	case *CreateOfferRequest:
 		c.state = OfferCreated
 		cache.MemcacheInstance.Set(messageRequest.OfferID, c)
-		response := MessageResponse{Status: WS_CREATED_STATUS}
-		responsePayload, err := parseMessageResponse(response)
-		if err != nil {
-			logger.Error("Error parsing message response: ", err)
-			break
-		}
 		broadcastMessage := BroadcastMessage{
 			Channel: OffersChannel,
 			Message: string(message),
 		}
 		c.hub.broadcast <- &broadcastMessage
-		c.send <- responsePayload
 		logger.Info("New offer created: ", messageRequest.OfferID)
 	case *AnswerOfferRequest:
 		if c.state != Registered {
@@ -118,14 +104,6 @@ func (c *Client) handleMessage(message []byte) {
 		cl := client.(*Client)
 		cl.send <- message
 		c.state = OfferAccepted
-
-		response := MessageResponse{Status: WS_OK_STATUS}
-		responsePayload, err := parseMessageResponse(response)
-		if err != nil {
-			logger.Error("Error parsing message response: ", err)
-			break
-		}
-		c.send <- responsePayload
 	default:
 		logger.Error("Invalid message type")
 	}

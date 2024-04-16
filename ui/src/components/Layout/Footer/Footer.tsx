@@ -8,7 +8,7 @@ export const Footer = () => {
           className='text-gray-400 text-sm hover:cursor-pointer hover:underline'
           href='/disclaimer'
         >
-          Disclaimer
+          Build {wasmVersion}
         </a>
         <a
           target='_blank'
@@ -16,7 +16,7 @@ export const Footer = () => {
           href='https://multiversx.com/'
         >
           Made with <HeartIcon className='mx-1 fill-gray-400' /> by the
-          MultiversX team
+         IndexOne Labs
         </a>
       </div>
     </footer>

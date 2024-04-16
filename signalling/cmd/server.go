@@ -25,7 +25,7 @@ func main() {
 
 	// Start server
 	logger.Info("Running server on: ", config.GetAddress())
-	err := http.ListenAndServeTLS(config.GetAddress(), config.CertFile, config.KeyFile, mux)
+	err := http.ListenAndServe(config.GetAddress(), mux)
 	if err != nil {
 		logger.Error("Error starting server: ", err)
 	}
