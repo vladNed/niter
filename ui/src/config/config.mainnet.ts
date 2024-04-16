@@ -7,3 +7,5 @@ export const contractAddress =
 export const API_URL = 'https://template-api.multiversx.com';
 export const sampleAuthenticatedDomains = [API_URL];
 export const environment = EnvironmentsEnum.mainnet;
+export const WASM_LOG_LEVEL = 2;
+export const SIGNALLING_SERVER_URL = '';

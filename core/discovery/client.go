@@ -3,14 +3,16 @@ package discovery
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"errors"
 
 	"nhooyr.io/websocket"
 
+	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery/schemas"
+	"github.com/indexone/niter/core/logging"
 )
 
+var logger = logging.NewLogger(config.Config.LogLevel)
 
 // WSClient is a websocket client
 type WSClient struct {
@@ -18,17 +20,18 @@ type WSClient struct {
 }
 
 func NewWSClient() (*WSClient, error) {
-	conn, _, err := websocket.Dial(context.Background(), SIGNALLING_SERVER, &websocket.DialOptions{
-		
-	})
+	conn, _, err := websocket.Dial(context.Background(), SIGNALLING_SERVER, nil)
 	if err != nil {
-		log.Println("Error dialing websocket server:", err)
+		logger.Error("Error connecting to signalling server:", err.Error())
 		return nil, err
 	}
+
+	logger.Debug("Connected to signalling server")
 	return &WSClient{conn: conn}, nil
 }
 
 func (ws *WSClient) Start() error {
+	logger.Debug("Starting WS client")
 	err := ws.registerChannels()
 	if err != nil {
 		return err
@@ -40,12 +43,11 @@ func (ws *WSClient) Start() error {
 	return nil
 }
 
-
 func (ws *WSClient) registerChannels() error {
 	registerRequest := schemas.RegisterRequest{Channels: []string{OFFERS_CHANNEL}}
 	err := ws.Write(registerRequest)
 	if err != nil {
-		log.Println("Error registering channels:", err)
+		logger.Error("Error registering channels:", err.Error())
 		return err
 	}
 	return nil
@@ -54,12 +56,12 @@ func (ws *WSClient) registerChannels() error {
 func (ws *WSClient) listen() error {
 	defer ws.Close()
 	for {
-		message, err := ws.Recv()
+		_, err := ws.Recv()
 		if err != nil {
-			log.Println("Error receiving message:", err)
+			logger.Error("Error receiving message:", err.Error())
 			continue
 		}
-		log.Panicln("Received message:", message)
+		logger.Debug("Received message")
 		// TODO: Handle message
 	}
 }
@@ -91,7 +93,6 @@ func (ws *WSClient) Recv() (schemas.Message, error) {
 	}
 	return message, nil
 }
-
 
 func (ws *WSClient) Close() {
 	ws.conn.Close(websocket.StatusNormalClosure, "Closed by client")
