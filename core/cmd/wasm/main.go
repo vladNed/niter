@@ -10,12 +10,14 @@ import (
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery"
 	"github.com/indexone/niter/core/logging"
+	"github.com/indexone/niter/core/p2p"
 )
 
 var (
 	ConfigSet bool
 	logger    logging.Logger = logging.NewLogger(logging.INFO)
 	wsClient  *discovery.WSClient
+	peer      *p2p.Peer
 )
 
 const VERSION = "0.0.2"
@@ -45,15 +47,22 @@ func startWSClient() interface{} {
 	if !ConfigSet && wsClient == nil {
 		return js.Global().Get("Error").New("Config not set")
 	}
-
 	client, err := discovery.NewWSClient()
 	if err != nil {
 		return js.Global().Get("Error").New("Error creating WS client: " + err.Error())
 	}
-
 	wsClient = client
 	go client.Start()
+	return nil
+}
 
+// Start webRTC connection
+func startPeerClient() interface{} {
+	newPeer, err := p2p.NewPeer()
+	if err != nil {
+		return js.Global().Get("Error").New("Error creating peer: " + err.Error())
+	}
+	peer = newPeer
 	return nil
 }
 
@@ -63,6 +72,7 @@ func initialize(this js.Value, args []js.Value) interface{} {
 		resolve := inputs[0]
 		reject := inputs[1]
 		go func() {
+			logger.Debug("Initializing module...")
 			if len(args) == 0 {
 				err := js.Global().Get("Error").New("No arguments provided")
 				reject.Invoke(err)
@@ -70,6 +80,7 @@ func initialize(this js.Value, args []js.Value) interface{} {
 				return
 			}
 
+			// Sets the config for the module
 			err := setConfig(args)
 			if err != nil {
 				reject.Invoke(err)
@@ -77,6 +88,7 @@ func initialize(this js.Value, args []js.Value) interface{} {
 				return
 			}
 
+			// Start the websocket client
 			err = startWSClient()
 			if err != nil {
 				reject.Invoke(err)
@@ -84,6 +96,15 @@ func initialize(this js.Value, args []js.Value) interface{} {
 				return
 			}
 
+			// Start the peer client
+			err = startPeerClient()
+			if err != nil {
+				reject.Invoke(err)
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
+			logger.Debug("Module initialized completed")
 			resolve.Invoke(js.Undefined())
 		}()
 

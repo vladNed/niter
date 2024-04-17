@@ -58,7 +58,7 @@ type CoreLogger struct {
 	level LogLevel
 }
 
-func NewLogger(logLevel LogLevel) *CoreLogger {
+func NewLogger(logLevel LogLevel) Logger {
 	return &CoreLogger{level: logLevel}
 }
 
