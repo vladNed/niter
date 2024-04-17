@@ -1,0 +1,16 @@
+version: '3'
+services:
+  react-app:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ui/public/wasm:/app/public/wasm
+  signalling-server:
+    build:
+      context: ./signalling
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
