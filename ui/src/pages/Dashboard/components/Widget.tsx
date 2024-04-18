@@ -6,7 +6,6 @@ import { useIsWebProvider } from 'hooks';
 export const Widget = ({
   title,
   description,
-  reference,
   anchor,
   widget: MxWidget,
   props = {}
@@ -20,7 +19,6 @@ export const Widget = ({
     <Card
       title={title}
       description={description}
-      reference={reference}
       anchor={anchor}
     >
       <MxWidget callbackRoute={callbackRoute} {...props} />

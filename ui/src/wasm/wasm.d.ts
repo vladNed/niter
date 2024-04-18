@@ -9,3 +9,9 @@ declare const wasmVersion;
  * The function that initializes the wasm module.
  */
 declare function wasmInit(config: string): Promise<void>;
+
+/**
+ * The function that creates an offer and SDP for the peer.
+ *
+ */
+declare function wasmCreateOffer(): Promise<string>;

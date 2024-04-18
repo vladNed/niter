@@ -29,10 +29,15 @@ func (mr *MessageRequest) Unmarshal(payload []byte) (Message, error) {
 
 }
 
+type SessionDescription struct {
+	Type string `json:"type"`
+	SDP  string `json:"sdp"`
+}
+
 type CreateOfferRequest struct {
-	Type     string `json:"type"`
-	OfferID  string `json:"offerId"`
-	OfferSDP string `json:"sdp"`
+	Type             string             `json:"type"`
+	OfferID          string             `json:"offerId"`
+	OfferDescription SessionDescription `json:"offerDescription"`
 }
 
 type AnswerOfferRequest struct {

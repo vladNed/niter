@@ -1,6 +1,7 @@
 import { AuthRedirectWrapper } from 'wrappers';
 import {
   Account,
+  Offers,
 } from './widgets';
 import { useScrollToElement } from 'hooks';
 import { Widget } from './components';
@@ -11,7 +12,11 @@ const WIDGETS: WidgetType[] = [
     title: 'Account',
     widget: Account,
     description: 'Connected account details',
-    reference: 'https://docs.multiversx.com/sdk-and-tools/sdk-dapp/#account'
+  },
+  {
+    title: 'Offers',
+    widget: Offers,
+    description: 'List of available offers',
   },
 ];
 

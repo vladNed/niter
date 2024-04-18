@@ -9,8 +9,10 @@ import (
 
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery"
+	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
 	"github.com/indexone/niter/core/p2p"
+	"github.com/google/uuid"
 )
 
 var (
@@ -114,10 +116,60 @@ func initialize(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
+func isPeerInitialized() interface{} {
+	if peer == nil {
+		return js.Global().Get("Error").New("Peer not initialized")
+	}
+	return nil
+}
+
+func createOffer(this js.Value, args []js.Value) interface{} {
+	if err := isPeerInitialized(); err != nil {
+		return err
+	}
+
+
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+		go func() {
+			logger.Debug("Creating new offer")
+			offer, err := peer.CreateOffer()
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error creating offer: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
+			// TODO: Hash and make id
+			offerId := uuid.New().String()
+			offerPayload := schemas.OfferMessage{
+				Type: offer.Type.String(),
+				OfferID: offerId,
+				OfferDescription: offer,
+			}
+
+			offerJson, err := json.Marshal(offerPayload)
+			err = wsClient.Write(offerJson)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error sending offer: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			logger.Debug("Offer sent")
+			resolve.Invoke(js.ValueOf(offerId))
+		}()
+
+		return nil
+	})
+	return js.Global().Get("Promise").New(handler)
+}
+
 func main() {
 	jsGlobal := js.Global()
 	jsGlobal.Set("wasmVersion", VERSION)
 	jsGlobal.Set("wasmInit", js.FuncOf(initialize))
+	jsGlobal.Set("wasmCreateOffer", js.FuncOf(createOffer))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})

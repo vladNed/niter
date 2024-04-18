@@ -4,4 +4,5 @@ export type ProfileType = {
   balance: string;
   nonce: number;
   shard: number;
+  
 };

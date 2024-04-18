@@ -18,7 +18,7 @@ export const LoadWasm = (props: any) => {
       const go = new window.Go();
       const wasm = await WebAssembly.instantiateStreaming(fetch('wasm/niter.wasm'), go.importObject);
       go.run(wasm.instance);
-      
+
       try {
         await wasmInit(JSON.stringify(wasm_config))
       } catch (e) {

@@ -7,6 +7,5 @@ export type WidgetType<T = any> = {
   widget: (props: T) => JSX.Element;
   description?: string;
   props?: { receiver?: string };
-  reference: string;
   anchor?: string;
 };

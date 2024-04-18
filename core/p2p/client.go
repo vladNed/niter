@@ -128,3 +128,19 @@ func (p *Peer) setupDataChannelProtocol() {
 		})
 	})
 }
+
+func (p *Peer) CreateOffer() (*webrtc.SessionDescription, error) {
+	offer, err := p.LocalConnection.CreateOffer(nil)
+	if err != nil {
+		logger.Warn("Error creating offer: ", err.Error())
+		return nil, err
+	}
+
+	err = p.LocalConnection.SetLocalDescription(offer)
+	if err != nil {
+		logger.Warn("Error setting local description: ", err.Error())
+		return nil, err
+	}
+
+	return &offer, nil
+}
