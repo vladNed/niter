@@ -144,3 +144,19 @@ func (p *Peer) CreateOffer() (*webrtc.SessionDescription, error) {
 
 	return &offer, nil
 }
+
+func (p *Peer) CreateAnswer() (*webrtc.SessionDescription, error) {
+	answer, err := p.LocalConnection.CreateAnswer(nil)
+	if err != nil {
+		logger.Warn("Error creating answer: ", err.Error())
+		return nil, err
+	}
+
+	err = p.LocalConnection.SetLocalDescription(answer)
+	if err != nil {
+		logger.Warn("Error setting local description: ", err.Error())
+		return nil, err
+	}
+
+	return &answer, nil
+}

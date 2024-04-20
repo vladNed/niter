@@ -12,6 +12,15 @@ declare function wasmInit(config: string): Promise<void>;
 
 /**
  * The function that creates an offer and SDP for the peer.
- *
  */
 declare function wasmCreateOffer(): Promise<string>;
+
+/**
+ * The function that creates an answer and SDP for the peer.
+ */
+declare function wasmCreateAnswer(offerId: string): Promise<void>;
+
+/**
+ * The function that polls the broadcasted offers.
+ */
+declare function wasmPollOffers(): Promise<string[]>;

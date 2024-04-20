@@ -56,13 +56,13 @@ func (ws *WSClient) registerChannels() error {
 func (ws *WSClient) listen() error {
 	defer ws.Close()
 	for {
-		_, err := ws.Recv()
+		msg, err := ws.recv()
 		if err != nil {
 			logger.Error("Error receiving message:", err.Error())
 			continue
 		}
 		logger.Debug("Received message")
-		// TODO: Handle message
+		ws.handleRecvMessages(msg)
 	}
 }
 
@@ -78,7 +78,12 @@ func (ws *WSClient) Write(payload interface{}) error {
 	return nil
 }
 
-func (ws *WSClient) Recv() (schemas.Message, error) {
+// recv receives a message from the WebSocket connection.
+// It reads the message type and payload from the connection,
+// and then parses the payload into a schemas.Message object.
+// If there is an error reading or parsing the message, an error is returned.
+// Otherwise, the parsed message is returned.
+func (ws *WSClient) recv() (schemas.Message, error) {
 	msgType, payload, err := ws.conn.Read(context.Background())
 	if err != nil {
 		return nil, err
@@ -92,6 +97,18 @@ func (ws *WSClient) Recv() (schemas.Message, error) {
 		return nil, err
 	}
 	return message, nil
+}
+
+func (ws *WSClient) handleRecvMessages(msg schemas.Message) {
+	switch msg := msg.(type) {
+	case *schemas.OfferMessage:
+		logger.Debug("Received offer message")
+		Cache.AddOffer(*msg)
+	case *schemas.AnswerMessage:
+		logger.Debug("Received answer message")
+	default:
+		logger.Warn("Unknown message type")
+	}
 }
 
 func (ws *WSClient) Close() {

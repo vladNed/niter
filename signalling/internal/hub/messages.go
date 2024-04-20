@@ -19,10 +19,10 @@ func (mr *MessageRequest) Unmarshal(payload []byte) (Message, error) {
 	switch mr.Type {
 	case Offer:
 		var req CreateOfferRequest
-		return &req, unmarshalRequest(payload, &req)
+		return &req, json.Unmarshal(payload, &req)
 	case Answer:
 		var req AnswerOfferRequest
-		return &req, unmarshalRequest(payload, &req)
+		return &req, json.Unmarshal(payload, &req)
 	default:
 		return nil, errors.New("invalid message type")
 	}
@@ -35,15 +35,15 @@ type SessionDescription struct {
 }
 
 type CreateOfferRequest struct {
-	Type             string             `json:"type"`
-	OfferID          string             `json:"offerId"`
-	OfferDescription SessionDescription `json:"offerDescription"`
+	Type             string              `json:"type"`
+	OfferID          string              `json:"offerId"`
+	OfferDescription *SessionDescription `json:"offerDescription"`
 }
 
 type AnswerOfferRequest struct {
-	Type      string `json:"type"`
-	OfferID   string `json:"offerId"`
-	AnswerSDP string `json:"sdp"`
+	Type              string              `json:"type"`
+	OfferID           string              `json:"offerId"`
+	AnswerDescription *SessionDescription `json:"answerDescription"`
 }
 
 type MessageResponse struct {
@@ -54,7 +54,7 @@ type MessageResponse struct {
 func parseMessageRequest(payload []byte) (Message, error) {
 	// Step 1: Parse the message request type
 	var req MessageRequest
-	err := unmarshalRequest(payload, &req)
+	err := json.Unmarshal(payload, &req)
 	if err != nil {
 		return nil, err
 	}
@@ -70,12 +70,4 @@ func parseMessageRequest(payload []byte) (Message, error) {
 
 func parseMessageResponse(msg interface{}) ([]byte, error) {
 	return json.Marshal(msg)
-}
-
-func unmarshalRequest(payload []byte, req interface{}) error {
-	err := json.Unmarshal(payload, req)
-	if err != nil {
-		return err
-	}
-	return nil
 }

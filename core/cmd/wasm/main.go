@@ -22,7 +22,7 @@ var (
 	peer      *p2p.Peer
 )
 
-const VERSION = "0.0.2"
+const VERSION = "0.0.3"
 
 // Sets the config within the wasm file. This can only be done at initialization.
 // The input of the function is a JSON string representing the config.
@@ -116,6 +116,7 @@ func initialize(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
+// Checks if the peer is initialized. If not, it returns an error.
 func isPeerInitialized() interface{} {
 	if peer == nil {
 		return js.Global().Get("Error").New("Peer not initialized")
@@ -123,11 +124,11 @@ func isPeerInitialized() interface{} {
 	return nil
 }
 
+// Creates a new offer. It returns a promise that resolves with the offer id.
 func createOffer(this js.Value, args []js.Value) interface{} {
 	if err := isPeerInitialized(); err != nil {
 		return err
 	}
-
 
 	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
 		resolve := inputs[0]
@@ -149,8 +150,7 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 				OfferDescription: offer,
 			}
 
-			offerJson, err := json.Marshal(offerPayload)
-			err = wsClient.Write(offerJson)
+			err = wsClient.Write(offerPayload)
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error sending offer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
@@ -165,11 +165,69 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
+// Creates a new answer. It returns a promise that resolves when the answer is created.s
+func createAnswer(this js.Value, args []js.Value) interface{} {
+	if err := isPeerInitialized(); err != nil {
+		return err
+	}
+
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+		go func() {
+			logger.Debug("Creating new answer")
+			answer, err := peer.CreateAnswer()
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error creating answer: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			answerPayload := schemas.AnswerMessage{
+				Type: answer.Type.String(),
+				OfferID: args[0].String(),
+				AnswerDescription: answer,
+			}
+			err = wsClient.Write(answerPayload)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error sending answer: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			logger.Debug("Answer sent")
+			resolve.Invoke(js.Undefined())
+		}()
+
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
+func pollOffers(this js.Value, args []js.Value) interface{} {
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+		go func() {
+			offers := discovery.Cache.AllOffers()
+
+			resolve.Invoke(js.ValueOf(offers))
+			reject.Invoke(js.Undefined())
+		}()
+
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
+
 func main() {
 	jsGlobal := js.Global()
 	jsGlobal.Set("wasmVersion", VERSION)
 	jsGlobal.Set("wasmInit", js.FuncOf(initialize))
 	jsGlobal.Set("wasmCreateOffer", js.FuncOf(createOffer))
+	jsGlobal.Set("wasmCreateAnswer", js.FuncOf(createAnswer))
+	jsGlobal.Set("wasmPollOffers", js.FuncOf(pollOffers))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})

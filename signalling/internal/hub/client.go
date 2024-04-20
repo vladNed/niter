@@ -41,8 +41,8 @@ func (c *Client) Register() {
 }
 
 func (c *Client) Unregister() {
-	// TODO: Cleanup the memcache of other offers
 	c.hub.unregister <- c
+	cache.MemcacheInstance.ClearData(c)
 	c.conn.Close()
 }
 
@@ -54,6 +54,13 @@ func (c *Client) handleChannelSubscribe(message []byte) {
 	}
 	c.channels = channelSubscribeRequest.Channels
 	logger.Info("Client subscribed to channels: ", channelSubscribeRequest.Channels)
+
+	if ContainsChannel(c.channels, MarketplaceChannel) {
+		for _, value := range cache.MemcacheInstance.All() {
+			c.send <- *value
+		}
+	}
+
 	c.state = Registered
 }
 
@@ -68,9 +75,9 @@ func (c *Client) handleMessage(message []byte) {
 	switch messageRequest := messageRequest.(type) {
 	case *CreateOfferRequest:
 		c.state = OfferCreated
-		cache.MemcacheInstance.Set(messageRequest.OfferID, c)
+		cache.MemcacheInstance.Set(messageRequest.OfferID, c, message)
 		broadcastMessage := BroadcastMessage{
-			Channel: OffersChannel,
+			Channel: MarketplaceChannel,
 			Message: string(message),
 		}
 		c.hub.broadcast <- &broadcastMessage

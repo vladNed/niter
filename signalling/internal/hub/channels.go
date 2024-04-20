@@ -30,7 +30,7 @@ func parseChannelRequest(payload []byte) (*ChannelRequest, error) {
 	return &req, nil
 }
 
-func containsChannel(channels []string, channel string) bool {
+func ContainsChannel(channels []string, channel string) bool {
 	for _, c := range channels {
 		if c == channel {
 			return true
@@ -41,7 +41,7 @@ func containsChannel(channels []string, channel string) bool {
 
 func verifyChannel(req *ChannelRequest) bool {
 	for _, channel := range req.Channels {
-		if containsChannel(AllChannels, channel) {
+		if ContainsChannel(AllChannels, channel) {
 			continue
 		}
 		return false
