@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"syscall/js"
 
+	"github.com/google/uuid"
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery"
 	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
 	"github.com/indexone/niter/core/p2p"
-	"github.com/google/uuid"
+	"github.com/indexone/niter/core/utils"
 )
 
 var (
@@ -49,7 +50,7 @@ func startWSClient() interface{} {
 	if !ConfigSet && wsClient == nil {
 		return js.Global().Get("Error").New("Config not set")
 	}
-	client, err := discovery.NewWSClient()
+	client, err := discovery.NewWSClient(peer)
 	if err != nil {
 		return js.Global().Get("Error").New("Error creating WS client: " + err.Error())
 	}
@@ -90,16 +91,16 @@ func initialize(this js.Value, args []js.Value) interface{} {
 				return
 			}
 
-			// Start the websocket client
-			err = startWSClient()
+			// Start the peer client
+			err = startPeerClient()
 			if err != nil {
 				reject.Invoke(err)
 				resolve.Invoke(js.Undefined())
 				return
 			}
 
-			// Start the peer client
-			err = startPeerClient()
+			// Start the websocket client
+			err = startWSClient()
 			if err != nil {
 				reject.Invoke(err)
 				resolve.Invoke(js.Undefined())
@@ -142,12 +143,19 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 				return
 			}
 
+			encodedSDP, err := utils.EncodeSDP(offer)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error encoding SDP: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
 			// TODO: Hash and make id
 			offerId := uuid.New().String()
 			offerPayload := schemas.OfferMessage{
-				Type: offer.Type.String(),
-				OfferID: offerId,
-				OfferDescription: offer,
+				Type:     offer.Type.String(),
+				OfferID:  offerId,
+				OfferSDP: encodedSDP,
 			}
 
 			err = wsClient.Write(offerPayload)
@@ -176,16 +184,40 @@ func createAnswer(this js.Value, args []js.Value) interface{} {
 		reject := inputs[1]
 		go func() {
 			logger.Debug("Creating new answer")
+
+			offerData, ok := discovery.Cache.GetOffer(args[0].String())
+			if !ok {
+				reject.Invoke(js.Global().Get("Error").New("Offer not found"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
+			offerSDP := offerData["OfferSDP"].(string)
+			err := peer.SetOffer(offerSDP)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error setting offer: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
 			answer, err := peer.CreateAnswer()
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error creating answer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
 				return
 			}
+
+			encodedAnswer, err := utils.EncodeSDP(answer)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error encoding answer: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
 			answerPayload := schemas.AnswerMessage{
-				Type: answer.Type.String(),
-				OfferID: args[0].String(),
-				AnswerDescription: answer,
+				Type:      answer.Type.String(),
+				OfferID:   args[0].String(),
+				AnswerSDP: encodedAnswer,
 			}
 			err = wsClient.Write(answerPayload)
 			if err != nil {

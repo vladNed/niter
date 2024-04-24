@@ -2,6 +2,7 @@
 export const walletConnectV2ProjectId = '9b1a9564f91cb659ffe21b73d5c4e2d8';
 export const apiTimeout = 6000;
 export const transactionSize = 10;
+export const OFFERS_POLLING_INTERVAL = 500;
 export const nativeAuth = true;
 export const BATCH_TRANSACTIONS_SC = {
   egld_wEGLD: {

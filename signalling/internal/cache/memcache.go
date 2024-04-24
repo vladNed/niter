@@ -3,19 +3,19 @@ package cache
 var MemcacheInstance = NewMemcache()
 
 type Memcache struct {
-	cache map[string]*interface{}
+	cache map[string]interface{}
 	dataCache map[string]*[]byte
 }
 
 func NewMemcache() *Memcache {
 	return &Memcache{
-		cache: make(map[string]*interface{}),
+		cache: make(map[string]interface{}),
 		dataCache: make(map[string]*[]byte),
 	}
 }
 
 func (c *Memcache) Set(key string, value interface{}, data []byte) {
-	c.cache[key] = &value
+	c.cache[key] = value
 	c.dataCache[key] = &data
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/logging"
+	"github.com/indexone/niter/core/utils"
 )
 
 var logger = logging.NewLogger(config.Config.LogLevel)
@@ -39,7 +40,8 @@ func NewPeer() (*Peer, error) {
 
 	peer.setupConnectionCallbacks()
 	peer.setupDataChannelProtocol()
-
+	peer.CreateOffer()
+	
 	logger.Debug("Peer initialized")
 
 	return peer, nil
@@ -159,4 +161,21 @@ func (p *Peer) CreateAnswer() (*webrtc.SessionDescription, error) {
 	}
 
 	return &answer, nil
+}
+
+func (p *Peer) SetOffer(encodedSDP string) error {
+	offer, err := utils.DecodeSDP(encodedSDP)
+	if err != nil {
+		logger.Warn("Error decoding SDP: ", err.Error())
+		return err
+	}
+
+	logger.Debug("Setting remote description")
+	err = p.LocalConnection.SetRemoteDescription(*offer)
+	if err != nil {
+		logger.Warn("Error setting remote description: ", err.Error())
+		return err
+	}
+
+	return nil
 }

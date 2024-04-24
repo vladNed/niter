@@ -14,15 +14,9 @@ var (
 	space     = []byte{' '}
 )
 
-// Client represents a single websocket connection in to the hub
 type Client struct {
-	hub *Hub
-
-	// The websocket connection.
-	conn *websocket.Conn
-
-	// Buffered channel of outbound messages.
-	send     chan []byte
+	hub      *Hub
+	conn     *websocket.Conn
 	channels []string
 	state    State
 }
@@ -31,7 +25,6 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 	return &Client{
 		hub:   hub,
 		conn:  conn,
-		send:  make(chan []byte, 256),
 		state: New,
 	}
 }
@@ -41,9 +34,9 @@ func (c *Client) Register() {
 }
 
 func (c *Client) Unregister() {
-	c.hub.unregister <- c
 	cache.MemcacheInstance.ClearData(c)
 	c.conn.Close()
+	c.hub.unregister <- c
 }
 
 func (c *Client) handleChannelSubscribe(message []byte) {
@@ -57,7 +50,7 @@ func (c *Client) handleChannelSubscribe(message []byte) {
 
 	if ContainsChannel(c.channels, MarketplaceChannel) {
 		for _, value := range cache.MemcacheInstance.All() {
-			c.send <- *value
+			c.WriteStream(*value)
 		}
 	}
 
@@ -71,7 +64,6 @@ func (c *Client) handleMessage(message []byte) {
 		logger.Error("Error parsing message request: ", err)
 		return
 	}
-
 	switch messageRequest := messageRequest.(type) {
 	case *CreateOfferRequest:
 		c.state = OfferCreated
@@ -83,16 +75,6 @@ func (c *Client) handleMessage(message []byte) {
 		c.hub.broadcast <- &broadcastMessage
 		logger.Info("New offer created: ", messageRequest.OfferID)
 	case *AnswerOfferRequest:
-		if c.state != Registered {
-			response := MessageResponse{Status: WS_BAD_REQUEST_STATUS, Details: "Invalid state for answer request"}
-			responsePayload, err := parseMessageResponse(response)
-			if err != nil {
-				logger.Error("Error parsing message response: ", err)
-				break
-			}
-			c.send <- responsePayload
-			return
-		}
 		if !cache.MemcacheInstance.Contains(messageRequest.OfferID) {
 			response := MessageResponse{Status: WS_BAD_REQUEST_STATUS, Details: "Offer not found"}
 			responsePayload, err := parseMessageResponse(response)
@@ -100,7 +82,8 @@ func (c *Client) handleMessage(message []byte) {
 				logger.Error("Error parsing message response: ", err)
 				break
 			}
-			c.send <- responsePayload
+			c.WriteStream(responsePayload)
+			logger.Error("Offer not found")
 			return
 		}
 		client, ok := cache.MemcacheInstance.Get(messageRequest.OfferID)
@@ -109,7 +92,7 @@ func (c *Client) handleMessage(message []byte) {
 			return
 		}
 		cl := client.(*Client)
-		cl.send <- message
+		cl.WriteStream(message)
 		c.state = OfferAccepted
 	default:
 		logger.Error("Invalid message type")
@@ -136,21 +119,16 @@ func (c *Client) ReadStream() {
 	}
 }
 
-func (c *Client) WriteStream() {
-	defer c.Unregister()
-	for {
-		for msg := range c.send {
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+func (c *Client) WriteStream(message []byte) {
+	c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 
-			w, err := c.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				continue
-			}
-			w.Write(msg)
+	w, err := c.conn.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return
+	}
+	w.Write(message)
 
-			if err := w.Close(); err != nil {
-				continue
-			}
-		}
+	if err := w.Close(); err != nil {
+		return
 	}
 }

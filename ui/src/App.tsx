@@ -21,7 +21,6 @@ import { RouteNamesEnum } from 'localConstants';
 import { PageNotFound, Unlock } from 'pages';
 import { routes } from 'routes';
 import { BatchTransactionsContextProvider } from 'wrappers';
-import { LoadWasm } from 'wasm';
 
 const AppContent = () => {
   return (
@@ -81,9 +80,7 @@ export const App = () => {
       >
         <Router>
           <BatchTransactionsContextProvider>
-            <LoadWasm>
-              <AppContent />
-            </LoadWasm>
+            <AppContent />
           </BatchTransactionsContextProvider>
         </Router>
       </AxiosInterceptorContext.Interceptor>

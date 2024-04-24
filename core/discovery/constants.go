@@ -1,6 +1,7 @@
 package discovery
 
 const (
-	SIGNALLING_SERVER = "ws://localhost:8080/ws/v1/"
-	OFFERS_CHANNEL    = "offers"
+	SIGNALLING_SERVER   = "ws://localhost:8080/ws/v1/"
+	OFFERS_CHANNEL      = "offers"
+	MARKETPLACE_CHANNEL = "marketplace"
 )

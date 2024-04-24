@@ -21,5 +21,4 @@ func serveWebSocket(h *hub.Hub, w http.ResponseWriter, r *http.Request) {
 
 	// Start io streams
 	go client.ReadStream()
-	go client.WriteStream()
 }

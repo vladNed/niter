@@ -35,15 +35,15 @@ type SessionDescription struct {
 }
 
 type CreateOfferRequest struct {
-	Type             string              `json:"type"`
-	OfferID          string              `json:"offerId"`
-	OfferDescription *SessionDescription `json:"offerDescription"`
+	Type     string `json:"type"`
+	OfferID  string `json:"offerId"`
+	OfferSDP string `json:"offerSDP"`
 }
 
 type AnswerOfferRequest struct {
-	Type              string              `json:"type"`
-	OfferID           string              `json:"offerId"`
-	AnswerDescription *SessionDescription `json:"answerDescription"`
+	Type      string `json:"type"`
+	OfferID   string `json:"offerId"`
+	AnswerSDP string `json:"answerSDP"`
 }
 
 type MessageResponse struct {

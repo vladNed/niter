@@ -10,16 +10,18 @@ import (
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
+	"github.com/indexone/niter/core/p2p"
 )
 
 var logger = logging.NewLogger(config.Config.LogLevel)
 
 // WSClient is a websocket client
 type WSClient struct {
-	conn *websocket.Conn
+	conn     *websocket.Conn
+	rtcPeer  *p2p.Peer
 }
 
-func NewWSClient() (*WSClient, error) {
+func NewWSClient(rtcPeer *p2p.Peer) (*WSClient, error) {
 	conn, _, err := websocket.Dial(context.Background(), SIGNALLING_SERVER, nil)
 	if err != nil {
 		logger.Error("Error connecting to signalling server:", err.Error())
@@ -27,7 +29,7 @@ func NewWSClient() (*WSClient, error) {
 	}
 
 	logger.Debug("Connected to signalling server")
-	return &WSClient{conn: conn}, nil
+	return &WSClient{conn: conn, rtcPeer: rtcPeer}, nil
 }
 
 func (ws *WSClient) Start() error {
@@ -44,7 +46,7 @@ func (ws *WSClient) Start() error {
 }
 
 func (ws *WSClient) registerChannels() error {
-	registerRequest := schemas.RegisterRequest{Channels: []string{OFFERS_CHANNEL}}
+	registerRequest := schemas.RegisterRequest{Channels: []string{OFFERS_CHANNEL, MARKETPLACE_CHANNEL}}
 	err := ws.Write(registerRequest)
 	if err != nil {
 		logger.Error("Error registering channels:", err.Error())
@@ -106,6 +108,7 @@ func (ws *WSClient) handleRecvMessages(msg schemas.Message) {
 		Cache.AddOffer(*msg)
 	case *schemas.AnswerMessage:
 		logger.Debug("Received answer message")
+		ws.rtcPeer.SetOffer(msg.AnswerSDP)
 	default:
 		logger.Warn("Unknown message type")
 	}

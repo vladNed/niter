@@ -18,16 +18,9 @@ type BroadcastMessage struct {
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
-	// Registered clients.
-	clients map[*Client]bool
-
-	// Inbound messages from the clients.
-	broadcast chan *BroadcastMessage
-
-	// Register requests from the clients.
-	register chan *Client
-
-	// Unregister requests from clients.
+	clients    map[*Client]bool
+	broadcast  chan *BroadcastMessage
+	register   chan *Client
 	unregister chan *Client
 }
 
@@ -45,14 +38,11 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
-			logger.Info("Registering client -> ", client.conn.RemoteAddr().String())
+			logger.Info("Registering new client")
 			h.clients[client] = true
 		case client := <-h.unregister:
-			logger.Info("Unregister client -> ", client.conn.RemoteAddr().String())
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
-			}
+			logger.Info("Unregister client")
+			delete(h.clients, client)
 		case message := <-h.broadcast:
 			for client := range h.clients {
 				hasChannel := false
@@ -66,12 +56,7 @@ func (h *Hub) Run() {
 					logger.Info("Client does not have channel: ", message.Channel)
 					continue
 				}
-				select {
-				case client.send <- []byte(message.Message):
-				default:
-					close(client.send)
-					delete(h.clients, client)
-				}
+				client.WriteStream([]byte(message.Message))
 			}
 		}
 	}

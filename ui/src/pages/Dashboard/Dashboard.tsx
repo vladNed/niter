@@ -6,6 +6,7 @@ import {
 import { useScrollToElement } from 'hooks';
 import { Widget } from './components';
 import { WidgetType } from 'types/widget.types';
+import { LoadWasm } from 'wasm';
 
 const WIDGETS: WidgetType[] = [
   {
@@ -25,11 +26,13 @@ export const Dashboard = () => {
 
   return (
     <AuthRedirectWrapper>
-      <div className='flex flex-col gap-6 max-w-3xl w-full'>
-        {WIDGETS.map((element) => (
-          <Widget key={element.title} {...element} />
-        ))}
-      </div>
+      <LoadWasm>
+        <div className='flex flex-col gap-6 max-w-3xl w-full'>
+          {WIDGETS.map((element) => (
+            <Widget key={element.title} {...element} />
+          ))}
+        </div>
+      </LoadWasm>
     </AuthRedirectWrapper>
   );
 };
