@@ -252,7 +252,6 @@ func pollOffers(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
-
 func main() {
 	jsGlobal := js.Global()
 	jsGlobal.Set("wasmVersion", VERSION)

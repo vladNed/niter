@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-
 type LogLevel int
 
 const (

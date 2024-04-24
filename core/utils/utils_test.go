@@ -9,7 +9,7 @@ import (
 func TestEncodeSDP(t *testing.T) {
 	sdp := webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
-		SDP: "v=0\r\no=- 0 0 IN IP4",
+		SDP:  "v=0\r\no=- 0 0 IN IP4",
 	}
 
 	encoded, err := EncodeSDP(&sdp)
@@ -25,7 +25,7 @@ func TestEncodeSDP(t *testing.T) {
 func TestDecodeSDP(t *testing.T) {
 	sdp := webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
-		SDP: "dummy-data",
+		SDP:  "dummy-data",
 	}
 
 	encoded, err := EncodeSDP(&sdp)
@@ -38,7 +38,7 @@ func TestDecodeSDP(t *testing.T) {
 		t.Errorf("Error decoding SDP: %v", err)
 	}
 
-	if decoded.Type != sdp.Type && decoded.SDP != sdp.SDP{
+	if decoded.Type != sdp.Type && decoded.SDP != sdp.SDP {
 		t.Errorf("Decoded SDP type does not match")
 	}
 

@@ -17,8 +17,8 @@ var logger = logging.NewLogger(config.Config.LogLevel)
 
 // WSClient is a websocket client
 type WSClient struct {
-	conn     *websocket.Conn
-	rtcPeer  *p2p.Peer
+	conn    *websocket.Conn
+	rtcPeer *p2p.Peer
 }
 
 func NewWSClient(rtcPeer *p2p.Peer) (*WSClient, error) {
@@ -81,8 +81,10 @@ func (ws *WSClient) Write(payload interface{}) error {
 }
 
 // recv receives a message from the WebSocket connection.
+//
 // It reads the message type and payload from the connection,
 // and then parses the payload into a schemas.Message object.
+//
 // If there is an error reading or parsing the message, an error is returned.
 // Otherwise, the parsed message is returned.
 func (ws *WSClient) recv() (schemas.Message, error) {

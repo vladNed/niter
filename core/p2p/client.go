@@ -41,7 +41,7 @@ func NewPeer() (*Peer, error) {
 	peer.setupConnectionCallbacks()
 	peer.setupDataChannelProtocol()
 	peer.CreateOffer()
-	
+
 	logger.Debug("Peer initialized")
 
 	return peer, nil

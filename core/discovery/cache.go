@@ -47,14 +47,14 @@ func (oc *OffersCache) structToMap(data interface{}) CacheData {
 	// Using reflection to get struct fields and values
 	val := reflect.ValueOf(data)
 	if val.Kind() == reflect.Ptr {
-	    val = val.Elem()
+		val = val.Elem()
 	}
 	typ := val.Type()
 
 	for i := 0; i < val.NumField(); i++ {
-	    fieldName := typ.Field(i).Name
-	    fieldValue := val.Field(i).Interface()
-	    result[fieldName] = fieldValue
+		fieldName := typ.Field(i).Name
+		fieldValue := val.Field(i).Interface()
+		result[fieldName] = fieldValue
 	}
 
 	return result
