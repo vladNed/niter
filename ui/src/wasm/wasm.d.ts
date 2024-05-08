@@ -1,5 +1,10 @@
 
 
+interface PeerInfo {
+  id: string;
+  state: string;
+}
+
 /**
  * The build version of the wasm module.
  */
@@ -24,3 +29,8 @@ declare function wasmCreateAnswer(offerId: string): Promise<void>;
  * The function that polls the broadcasted offers.
  */
 declare function wasmPollOffers(): Promise<string[]>;
+
+/**
+ * Get the peer state
+ */
+declare function wasmGetPeerState(): PeerInfo;

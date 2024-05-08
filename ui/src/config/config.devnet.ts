@@ -8,4 +8,4 @@ export const API_URL = 'https://devnet-template-api.multiversx.com';
 export const sampleAuthenticatedDomains = [API_URL];
 export const environment = EnvironmentsEnum.devnet;
 export const WASM_LOG_LEVEL = 0;
-export const SIGNALLING_SERVER_URL = 'ws://localhost:8080';
+export const SIGNALLING_SERVER_URL = 'ws://192.168.1.129:8080';

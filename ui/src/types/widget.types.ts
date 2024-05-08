@@ -9,3 +9,20 @@ export type WidgetType<T = any> = {
   props?: { receiver?: string };
   anchor?: string;
 };
+
+export interface SwapFieldProps {
+  icon: React.ReactElement;
+  ticker: string;
+  name: string;
+  side: 'Swap' | 'For';
+}
+
+export interface SideToken {
+  ticker: string;
+  name: string;
+  icon: React.ReactElement;
+}
+
+export interface SearchOfferWidgetProps {
+  isPlaceholder: boolean;
+}

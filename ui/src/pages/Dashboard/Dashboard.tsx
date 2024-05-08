@@ -7,6 +7,7 @@ import { useScrollToElement } from 'hooks';
 import { Widget } from './components';
 import { WidgetType } from 'types/widget.types';
 import { LoadWasm } from 'wasm';
+import { Label, PeerInfo, SearchOfferWidget } from 'components';
 
 const WIDGETS: WidgetType[] = [
   {
@@ -26,13 +27,17 @@ export const Dashboard = () => {
 
   return (
     <AuthRedirectWrapper>
-      <LoadWasm>
+      {/* <LoadWasm>
         <div className='flex flex-col gap-6 max-w-3xl w-full'>
           {WIDGETS.map((element) => (
             <Widget key={element.title} {...element} />
           ))}
         </div>
-      </LoadWasm>
+      </LoadWasm> */}
+      <div className='h-full container flex flex-col gap-8 place-items-center'>
+        {/* <PeerInfo /> */}
+        <SearchOfferWidget isPlaceholder={false}/>
+      </div>
     </AuthRedirectWrapper>
   );
 };
