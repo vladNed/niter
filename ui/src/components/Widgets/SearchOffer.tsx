@@ -50,27 +50,27 @@ export const SearchOfferWidget = (props: SearchOfferWidgetProps) => {
     <div className='h-full text-white font-outfit rounded-md p-10 w-full min-w-[500px] max-w-[600px]'>
       <div className='mb-4 flex flex-col place-items-left gap-5'>
         <div className='flex gap-4'>
-          <div
+          <button
             className={
               `px-4 py-2 rounded-2xl hover:bg-neutral-700 hover:text-neutral-400 transition duration-500 ease-in-out`
               + (swapMode === 'Create' ? ' bg-neutral-700 text-neutral-400' : ' bg-neutral-800 text-neutral-500')
             }
             onClick={() => handleSwapMode('Create')}
           >Create
-          </div>
-          <div
+          </button>
+          <button
             className={
               `px-4 py-2 rounded-2xl hover:bg-neutral-700 hover:text-neutral-400 transition duration-500 ease-in-out`
               + (swapMode === 'Find' ? ' text-neutral-400 bg-neutral-700' : ' bg-neutral-800 text-neutral-500')
             }
             onClick={() => handleSwapMode('Find')}
           >Find
-          </div>
-          <div className='px-4 py-2 rounded-2xl hover:bg-neutral-700 hover:text-neutral-400 bg-neutral-800 text-neutral-500 transition duration-500 ease-in-out' onClick={handleSideSwap}>
+          </button>
+          <button className='px-4 py-2 rounded-2xl hover:bg-neutral-700 hover:text-neutral-400 bg-neutral-800 text-neutral-500 transition duration-500 ease-in-out' onClick={handleSideSwap}>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 hover:rotate-180 transition duration-300 ease-in-out">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />
             </svg>
-          </div>
+          </button>
         </div>
         <span className='text-left text-2xl text-neutral-500'>{swapModeText}</span>
       </div>

@@ -26,3 +26,8 @@ export interface SideToken {
 export interface SearchOfferWidgetProps {
   isPlaceholder: boolean;
 }
+
+export interface DrawerProps {
+  isOpen: boolean;
+  toggleDrawer: () => void;
+}

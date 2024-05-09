@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, createContext } from 'react';
 import './wasm_exec.js';
-import './wasmTypes.d.ts';
+import _ from 'wasm/wasmTypes.js';
 import { SIGNALLING_SERVER_URL, WASM_LOG_LEVEL } from 'config';
-
+import { LoadingModal } from 'components/index.js';
 
 export const LoadWasm = (props: any) => {
   const [isWasmLoaded, setWasmLoaded] = useState(false);
@@ -32,6 +32,5 @@ export const LoadWasm = (props: any) => {
     loadWasm();
   }, [setWasmLoaded]);
 
-  return isWasmLoaded ? props.children : null;
+  return isWasmLoaded ? props.children : <LoadingModal />;
 }
-

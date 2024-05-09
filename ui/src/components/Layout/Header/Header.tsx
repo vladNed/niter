@@ -6,6 +6,8 @@ import { useGetIsLoggedIn } from 'hooks';
 import { RouteNamesEnum } from 'localConstants';
 import { useMatch } from 'react-router-dom';
 import { Logo, NavigationItems } from 'components/Layout/Header/Components';
+import { NetworkDrawer, NetworkModal } from 'components/Modal';
+import { useState } from 'react';
 
 const callbackUrl = `${window.location.origin}/unlock`;
 const onRedirect = undefined; // use this to redirect with useNavigate to a specific page after logout
@@ -28,6 +30,11 @@ const options = {
 export const Header = () => {
   const isLoggedIn = useGetIsLoggedIn();
   const isUnlockRoute = Boolean(useMatch(RouteNamesEnum.unlock));
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+
+  const handleDrawer = () => {
+    setDrawerOpen(!drawerOpen);
+  }
 
   const ConnectButton = isUnlockRoute ? null : (
     <MxLink to={RouteNamesEnum.unlock}>Connect</MxLink>
@@ -48,7 +55,7 @@ export const Header = () => {
 
   const navItems = [
     { title: 'Swap', path: '/dashboard' },
-    { title: 'Explore', path: '/explore' }
+    { title: 'Explore', path: '/explore' },
   ]
 
   return (
@@ -56,16 +63,19 @@ export const Header = () => {
       <Logo />
       <NavigationItems items={navItems} />
       <nav className='float-end text-white h-full w-full text-sm sm:relative sm:left-auto sm:top-auto sm:flex sm:w-auto sm:flex-row sm:justify-end sm:bg-transparent p-1'>
-        <div className='flex float-end container mx-auto items-center gap-2'>
+        <div className='flex float-end container mx-auto items-center gap-6'>
           <div className='flex gap-1 items-center text-zinc-400'>
             <div className='w-2 h-2 rounded-full bg-green-600' />
             <p>{environment}</p>
           </div>
+          <button onClick={handleDrawer} className='bg-primary-600/40 px-3 py-2 rounded-lg text-primary-300 hover:no-underline hover:bg-primary-600/100 transition-colors hover:text-primary-100'>
+            Network
+          </button>
 
           {isLoggedIn ? (
             <Button
               onClick={handleLogout}
-              className='inline-block rounded-lg px-3 py-2 text-center hover:no-underline my-0 hover:bg-primary-600/100 mx-0 bg-primary-600/40 '
+              className='text-neutral-100 inline-block rounded-lg px-3 py-2 text-center hover:no-underline my-0 hover:bg-neutral-600/100 mx-0 bg-neutral-800 '
             >
               Close
             </Button>
@@ -73,6 +83,7 @@ export const Header = () => {
             ConnectButton
           )}
         </div>
+      <NetworkDrawer isOpen={drawerOpen} toggleDrawer={handleDrawer} />
       </nav>
     </header>
   );
