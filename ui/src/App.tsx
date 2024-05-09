@@ -21,6 +21,7 @@ import { RouteNamesEnum } from 'localConstants';
 import { PageNotFound, Unlock } from 'pages';
 import { routes } from 'routes';
 import { BatchTransactionsContextProvider } from 'wrappers';
+import { LoadWasm } from 'wasm';
 
 const AppContent = () => {
   return (
@@ -52,20 +53,22 @@ const AppContent = () => {
     >
       <AxiosInterceptorContext.Listener>
         <Layout>
-          <TransactionsToastList />
-          <NotificationModal />
-          <SignTransactionsModals />
-          <Routes>
-            <Route path={RouteNamesEnum.unlock} element={<Unlock />} />
-            {routes.map((route) => (
-              <Route
-                path={route.path}
-                key={`route-key-'${route.path}`}
-                element={<route.component />}
-              />
-            ))}
-            <Route path='*' element={<PageNotFound />} />
-          </Routes>
+          <LoadWasm>
+            <TransactionsToastList />
+            <NotificationModal />
+            <SignTransactionsModals />
+            <Routes>
+              <Route path={RouteNamesEnum.unlock} element={<Unlock />} />
+              {routes.map((route) => (
+                <Route
+                  path={route.path}
+                  key={`route-key-'${route.path}`}
+                  element={<route.component />}
+                />
+              ))}
+              <Route path='*' element={<PageNotFound />} />
+            </Routes>
+          </LoadWasm>
         </Layout>
       </AxiosInterceptorContext.Listener>
     </DappProvider>

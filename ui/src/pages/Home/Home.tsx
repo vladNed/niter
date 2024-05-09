@@ -1,10 +1,10 @@
 import { AuthRedirectWrapper } from 'wrappers';
-import { SearchOfferWidget } from 'components';
+import { SwapWidget } from 'components';
 
 export const Home = () => {
   return (
     <AuthRedirectWrapper requireAuth={false}>
-      <SearchOfferWidget isPlaceholder={true}/>
+      <SwapWidget isPlaceholder={true}/>
     </AuthRedirectWrapper>
   );
 };

@@ -23,3 +23,7 @@
 .mx-transactions td > div > a {
   @apply text-sky-600;
 }
+
+.dapp-core-component__main__btn-primary {
+  @apply !text-primary-200 !bg-primary-600 hover:!bg-primary-700 !border-none !outline-none;
+}

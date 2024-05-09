@@ -1,6 +1,6 @@
 export enum RouteNamesEnum {
   home = '/',
-  dashboard = '/dashboard',
+  swap = '/swap',
   unlock = '/unlock',
   explore = '/explore'
 }

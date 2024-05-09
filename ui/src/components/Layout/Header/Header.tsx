@@ -54,8 +54,8 @@ export const Header = () => {
   };
 
   const navItems = [
-    { title: 'Swap', path: '/dashboard' },
-    { title: 'Explore', path: '/explore' },
+    { title: 'Swap', path: RouteNamesEnum.swap },
+    { title: 'Explore', path: RouteNamesEnum.explore },
   ]
 
   return (
@@ -68,7 +68,7 @@ export const Header = () => {
             <div className='w-2 h-2 rounded-full bg-green-600' />
             <p>{environment}</p>
           </div>
-          <button onClick={handleDrawer} className='bg-primary-600/40 px-3 py-2 rounded-lg text-primary-300 hover:no-underline hover:bg-primary-600/100 transition-colors hover:text-primary-100'>
+          <button disabled={!isLoggedIn} onClick={handleDrawer} className='bg-primary-600/40 px-3 py-2 rounded-lg text-primary-300 hover:no-underline hover:bg-primary-600/100 transition-colors hover:text-primary-100'>
             Network
           </button>
 

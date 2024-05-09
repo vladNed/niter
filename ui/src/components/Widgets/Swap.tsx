@@ -29,7 +29,7 @@ const tokens: SideToken[] = [
   { ticker: 'EGLD', name: 'Multiversx', icon: <MultiversxLogo /> }
 ]
 
-export const SearchOfferWidget = (props: SearchOfferWidgetProps) => {
+export const SwapWidget = (props: SearchOfferWidgetProps) => {
   const [swapMode, setSwapMode] = useState<'Create' | 'Find'>('Find')
   const swapModeText = swapMode === 'Find' ? 'Find an existing offer' : 'Create a new offer'
 

@@ -18,7 +18,7 @@ import { nativeAuth } from 'config';
 import { RouteNamesEnum } from 'localConstants';
 import { useNavigate } from 'react-router-dom';
 import { AuthRedirectWrapper } from 'wrappers';
-import { WebWalletLoginWrapper, WebWalletLoginConfigEnum } from './components';
+import { WebWalletLoginWrapper } from './components';
 
 type CommonPropsType =
   | OperaWalletLoginButtonPropsType
@@ -37,10 +37,10 @@ const WebWalletLoginButton = USE_WEB_WALLET_CROSS_WINDOW
 export const Unlock = () => {
   const navigate = useNavigate();
   const commonProps: CommonPropsType = {
-    callbackRoute: RouteNamesEnum.dashboard,
+    callbackRoute: RouteNamesEnum.swap,
     nativeAuth,
     onLoginRedirect: () => {
-      navigate(RouteNamesEnum.dashboard);
+      navigate(RouteNamesEnum.swap);
     }
   };
 
@@ -48,13 +48,13 @@ export const Unlock = () => {
     <AuthRedirectWrapper requireAuth={false}>
       <div className='flex justify-center items-center'>
         <div
-          className='flex flex-col p-6 items-center justify-center gap-4 rounded-xl bg-[#f6f8fa]'
+          className='flex flex-col p-6 items-center justify-center gap-4 rounded-xl bg-neutral-800 text-neutral-300'
           data-testid='unlockPage'
         >
           <div className='flex flex-col items-center gap-1'>
             <h2 className='text-2xl'>Login</h2>
 
-            <p className='text-center text-gray-400'>Choose a login method</p>
+            <p className='text-center'>Choose a login method</p>
           </div>
 
           <div className='flex flex-col md:flex-row'>
