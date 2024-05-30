@@ -13,6 +13,10 @@ build:
 build-dev: build
 	cp ${BUILD_PATH}/${APP_NAME}.wasm ../ui/public/wasm/${APP_NAME}.wasm
 
+run:
+	@echo "Running niter-node"
+	@go run cmd/cli/main.go
+
 help:
 	@echo "NITER-CORE"
 	@echo "Usage: make [target]"

@@ -61,10 +61,12 @@ func (ws *WSClient) listen() error {
 		msg, err := ws.recv()
 		if err != nil {
 			logger.Error("Error receiving message:", err.Error())
-			continue
+			return nil
 		}
 		logger.Debug("Received message")
-		ws.handleRecvMessages(msg)
+		if shouldExit := ws.handleRecvMessages(msg); shouldExit {
+			return nil
+		}
 	}
 }
 
@@ -103,7 +105,8 @@ func (ws *WSClient) recv() (schemas.Message, error) {
 	return message, nil
 }
 
-func (ws *WSClient) handleRecvMessages(msg schemas.Message) {
+func (ws *WSClient) handleRecvMessages(msg schemas.Message) bool {
+	shouldExit := false
 	switch msg := msg.(type) {
 	case *schemas.OfferMessage:
 		logger.Debug("Received offer message")
@@ -111,9 +114,12 @@ func (ws *WSClient) handleRecvMessages(msg schemas.Message) {
 	case *schemas.AnswerMessage:
 		logger.Debug("Received answer message")
 		ws.rtcPeer.SetOffer(msg.AnswerSDP)
+		shouldExit = true
 	default:
 		logger.Warn("Unknown message type")
 	}
+
+	return shouldExit
 }
 
 func (ws *WSClient) Close() {

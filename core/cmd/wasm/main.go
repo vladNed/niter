@@ -7,23 +7,24 @@ import (
 	"encoding/json"
 	"syscall/js"
 
-	"github.com/google/uuid"
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery"
 	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
 	"github.com/indexone/niter/core/p2p"
+	"github.com/indexone/niter/core/p2p/protocol"
 	"github.com/indexone/niter/core/utils"
 )
 
 var (
-	ConfigSet bool
-	logger    logging.Logger = logging.NewLogger(logging.INFO)
-	wsClient  *discovery.WSClient
-	peer      *p2p.Peer
+	ConfigSet     bool
+	logger        logging.Logger = logging.NewLogger(logging.INFO)
+	wsClient      *discovery.WSClient
+	peer          *p2p.Peer
+	eventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
 )
 
-const VERSION = "0.0.3"
+const VERSION = "0.1.25"
 
 // Sets the config within the wasm file. This can only be done at initialization.
 // The input of the function is a JSON string representing the config.
@@ -61,7 +62,7 @@ func startWSClient() interface{} {
 
 // Start webRTC connection
 func startPeerClient() interface{} {
-	newPeer, err := p2p.NewPeer()
+	newPeer, err := p2p.NewPeer(eventsChannel)
 	if err != nil {
 		return js.Global().Get("Error").New("Error creating peer: " + err.Error())
 	}
@@ -125,7 +126,11 @@ func isPeerInitialized() interface{} {
 	return nil
 }
 
-// Creates a new offer. It returns a promise that resolves with the offer id.
+// The create offer function, starts the local connection for the web rtc node
+// and creates a data channel. With this the node is ready to create an offer
+// and send it to the signalling server to be forwarded to the other peer.
+//
+// This way the node becomes an initiator node.
 func createOffer(this js.Value, args []js.Value) interface{} {
 	if err := isPeerInitialized(); err != nil {
 		return err
@@ -135,37 +140,51 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 		resolve := inputs[0]
 		reject := inputs[1]
 		go func() {
-			logger.Debug("Creating new offer")
-			offer, err := peer.CreateOffer()
+			err := peer.StartInitiator()
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error starting initiator: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			_, err = peer.CreateOffer()
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error creating offer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
 				return
 			}
-
-			encodedSDP, err := utils.EncodeSDP(offer)
-			if err != nil {
-				reject.Invoke(js.Global().Get("Error").New("Error encoding SDP: " + err.Error()))
+			event := <- eventsChannel
+			if event != protocol.InitiatorICECandidate {
+				reject.Invoke(js.Global().Get("Error").New("Error gathering ICE candidates"))
 				resolve.Invoke(js.Undefined())
 				return
 			}
 
-			// TODO: Hash and make id
-			offerId := uuid.New().String()
+			localSess := peer.LocalConnection.LocalDescription()
+			if localSess == nil {
+				reject.Invoke(js.Global().Get("Error").New("Error unmarshalling local description: "))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			encodedSDP, err := utils.EncodeSDP(localSess)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error encoding local SDP: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			offerId := utils.Hash([]byte(encodedSDP))
 			offerPayload := schemas.OfferMessage{
-				Type:     offer.Type.String(),
-				OfferID:  offerId,
+				Type:     localSess.Type.String(),
+				OfferID:  offerId[:6],
 				OfferSDP: encodedSDP,
 			}
-
 			err = wsClient.Write(offerPayload)
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error sending offer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
 				return
 			}
-			logger.Debug("Offer sent")
-			resolve.Invoke(js.ValueOf(offerId))
+			peer.State = protocol.PeerNegotiating
+			resolve.Invoke(js.ValueOf(offerId[:6]))
 		}()
 
 		return nil
@@ -173,7 +192,14 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
-// Creates a new answer. It returns a promise that resolves when the answer is created.s
+// The create answer function should be called only when the node is convinced
+// about an offer and wants to connect to the initiator node. Usually the
+// initiator node should have created a data channel and sent an offer SDP to
+// the signalling server.
+//
+// The node will get the offer SDP from the signalling server and set it as the
+// remote description. Then it will create an answer and send it back to the
+// initiator node, thus rendering the node a responder node.
 func createAnswer(this js.Value, args []js.Value) interface{} {
 	if err := isPeerInitialized(); err != nil {
 		return err
@@ -183,39 +209,52 @@ func createAnswer(this js.Value, args []js.Value) interface{} {
 		resolve := inputs[0]
 		reject := inputs[1]
 		go func() {
-			logger.Debug("Creating new answer")
 
+			err := peer.StartResponder()
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error starting responder: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
 			offerData, ok := discovery.Cache.GetOffer(args[0].String())
 			if !ok {
 				reject.Invoke(js.Global().Get("Error").New("Offer not found"))
 				resolve.Invoke(js.Undefined())
 				return
 			}
-
 			offerSDP := offerData["OfferSDP"].(string)
-			err := peer.SetOffer(offerSDP)
+			err = peer.SetOffer(offerSDP)
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error setting offer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
 				return
 			}
-
-			answer, err := peer.CreateAnswer()
+			_, err = peer.CreateAnswer()
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error creating answer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
 				return
 			}
-
-			encodedAnswer, err := utils.EncodeSDP(answer)
+			event := <- eventsChannel
+			if event != protocol.ResponderICECandidate {
+				reject.Invoke(js.Global().Get("Error").New("Error gathering ICE candidates"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			localSession := peer.LocalConnection.LocalDescription()
+			if localSession == nil {
+				reject.Invoke(js.Global().Get("Error").New("Error unmarshalling local description"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			encodedAnswer, err := utils.EncodeSDP(localSession)
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error encoding answer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
 				return
 			}
-
 			answerPayload := schemas.AnswerMessage{
-				Type:      answer.Type.String(),
+				Type:      localSession.Type.String(),
 				OfferID:   args[0].String(),
 				AnswerSDP: encodedAnswer,
 			}
@@ -252,6 +291,62 @@ func pollOffers(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
+func getPeerState(this js.Value, args []js.Value) interface{} {
+	if err := isPeerInitialized(); err != nil {
+		return err
+	}
+
+	remotePeer := ""
+	if peer.RemotePeer != nil {
+		remotePeer = peer.RemotePeer.Id
+	}
+	payload := map[string]interface{}{
+		"id":         peer.Id(),
+		"state":      peer.State.String(),
+		"remotePeer": remotePeer,
+	}
+
+	return js.ValueOf(payload)
+}
+
+func wasmSendData(this js.Value, args []js.Value) interface{} {
+	if err := isPeerInitialized(); err != nil {
+		return err
+	}
+	data := args[0].String()
+	err := peer.SendData([]byte(data))
+	if err != nil {
+		return js.Global().Get("Error").New("Error sending data: " + err.Error())
+	}
+	return js.Undefined()
+}
+
+func pollExchangeData(this js.Value, args []js.Value) interface{} {
+	if err := isPeerInitialized(); err != nil {
+		return err
+	}
+
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		go func() {
+			data := peer.ExchangeData
+			payload := make([]interface{}, 0)
+			for _, d := range data {
+				payload = append(payload, map[string]interface{}{
+					"side":      d.Side,
+					"data":      d.Data,
+					"timestamp": d.Timestamp,
+				})
+			}
+			resolve.Invoke(js.ValueOf(payload))
+		}()
+
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
 func main() {
 	jsGlobal := js.Global()
 	jsGlobal.Set("wasmVersion", VERSION)
@@ -259,6 +354,9 @@ func main() {
 	jsGlobal.Set("wasmCreateOffer", js.FuncOf(createOffer))
 	jsGlobal.Set("wasmCreateAnswer", js.FuncOf(createAnswer))
 	jsGlobal.Set("wasmPollOffers", js.FuncOf(pollOffers))
+	jsGlobal.Set("wasmGetPeerState", js.FuncOf(getPeerState))
+	jsGlobal.Set("wasmSendData", js.FuncOf(wasmSendData))
+	jsGlobal.Set("wasmPollExchangeData", js.FuncOf(pollExchangeData))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})

@@ -26,7 +26,10 @@ func (oc *OffersCache) AddOffer(offer schemas.OfferMessage) {
 func (oc *OffersCache) AllOffers() []interface{} {
 	offers := make([]interface{}, 0)
 	for offerId := range oc.Offers {
-		offers = append(offers, offerId)
+		data := map[string]interface{}{
+			"id": offerId,
+		}
+		offers = append(offers, data)
 	}
 
 	return offers

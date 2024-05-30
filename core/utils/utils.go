@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"time"
 
 	"github.com/pion/webrtc/v4"
 )
@@ -32,4 +35,15 @@ func DecodeSDP(encodedSDP string) (*webrtc.SessionDescription, error) {
 	}
 
 	return &sdp, nil
+}
+
+func Hash(data []byte) string {
+	hash := sha256.New()
+	hash.Write(data)
+
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func GetTimestamp() string {
+	return time.Now().UTC().Format(time.RFC3339)
 }
