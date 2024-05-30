@@ -22,6 +22,7 @@ var (
 	wsClient      *discovery.WSClient
 	peer          *p2p.Peer
 	eventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
+	msgChannel    chan schemas.Message = make(chan schemas.Message)
 )
 
 const VERSION = "0.1.25"
@@ -51,7 +52,7 @@ func startWSClient() interface{} {
 	if !ConfigSet && wsClient == nil {
 		return js.Global().Get("Error").New("Config not set")
 	}
-	client, err := discovery.NewWSClient(peer)
+	client, err := discovery.NewWSClient(msgChannel)
 	if err != nil {
 		return js.Global().Get("Error").New("Error creating WS client: " + err.Error())
 	}
@@ -62,7 +63,7 @@ func startWSClient() interface{} {
 
 // Start webRTC connection
 func startPeerClient() interface{} {
-	newPeer, err := p2p.NewPeer(eventsChannel)
+	newPeer, err := p2p.NewPeer(eventsChannel, msgChannel)
 	if err != nil {
 		return js.Global().Get("Error").New("Error creating peer: " + err.Error())
 	}

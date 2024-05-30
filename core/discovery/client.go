@@ -10,18 +10,17 @@ import (
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
-	"github.com/indexone/niter/core/p2p"
 )
 
 var logger = logging.NewLogger(config.Config.LogLevel)
 
 // WSClient is a websocket client
 type WSClient struct {
-	conn    *websocket.Conn
-	rtcPeer *p2p.Peer
+	conn       *websocket.Conn
+	msgChannel chan schemas.Message
 }
 
-func NewWSClient(rtcPeer *p2p.Peer) (*WSClient, error) {
+func NewWSClient(msgChannel chan schemas.Message) (*WSClient, error) {
 	conn, _, err := websocket.Dial(context.Background(), SIGNALLING_SERVER, nil)
 	if err != nil {
 		logger.Error("Error connecting to signalling server:", err.Error())
@@ -29,7 +28,7 @@ func NewWSClient(rtcPeer *p2p.Peer) (*WSClient, error) {
 	}
 
 	logger.Debug("Connected to signalling server")
-	return &WSClient{conn: conn, rtcPeer: rtcPeer}, nil
+	return &WSClient{conn: conn, msgChannel: msgChannel}, nil
 }
 
 func (ws *WSClient) Start() error {
@@ -107,13 +106,13 @@ func (ws *WSClient) recv() (schemas.Message, error) {
 
 func (ws *WSClient) handleRecvMessages(msg schemas.Message) bool {
 	shouldExit := false
-	switch msg := msg.(type) {
+	switch msgType := msg.(type) {
 	case *schemas.OfferMessage:
 		logger.Debug("Received offer message")
-		Cache.AddOffer(*msg)
+		Cache.AddOffer(*msgType)
 	case *schemas.AnswerMessage:
 		logger.Debug("Received answer message")
-		ws.rtcPeer.SetOffer(msg.AnswerSDP)
+		ws.msgChannel <- msg
 		shouldExit = true
 	default:
 		logger.Warn("Unknown message type")

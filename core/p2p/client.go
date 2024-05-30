@@ -8,6 +8,7 @@ import (
 
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/crypto"
+	msgSchemas "github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
 	"github.com/indexone/niter/core/p2p/protocol"
 	"github.com/indexone/niter/core/utils"
@@ -33,9 +34,10 @@ type Peer struct {
 	KeyPair         *crypto.NetworkKey
 	RemotePeer      *RemotePeerInfo
 	eventsChannel   chan protocol.PeerEvents
+	msgChannel      chan msgSchemas.Message
 }
 
-func NewPeer(eventChannel chan protocol.PeerEvents) (*Peer, error) {
+func NewPeer(eventChannel chan protocol.PeerEvents, msgChannel chan msgSchemas.Message) (*Peer, error) {
 	keyPair, err := crypto.GenerateKey()
 	if err != nil {
 		logger.Warn("Error generating key pair: ", err.Error())
@@ -48,8 +50,10 @@ func NewPeer(eventChannel chan protocol.PeerEvents) (*Peer, error) {
 		KeyPair:         keyPair,
 		RemotePeer:      nil,
 		eventsChannel:   eventChannel,
+		msgChannel:      msgChannel,
 	}
 	logger.Debug("Peer initialized")
+	go peer.MessageHandler()
 	return peer, nil
 }
 
@@ -93,6 +97,7 @@ func (p *Peer) StartResponder() error {
 	return nil
 }
 
+// ResetPeer resets the peer to its initial state
 func (p *Peer) ResetPeer() {
 	p.LocalConnection = nil
 	p.DataChannel = nil
@@ -268,4 +273,19 @@ func (p *Peer) RemoteDataChannelHandlers() {
 			p.ExchangeData = nil
 		})
 	})
+}
+
+// The message handler listens for messages from the websocket connection
+// and processes them accordingly.
+func (p *Peer) MessageHandler() {
+	for {
+		msg := <-p.msgChannel
+		switch msgType := msg.(type) {
+		case *msgSchemas.AnswerMessage:
+			p.SetOffer(msgType.AnswerSDP)
+		default:
+			logger.Warn("HANDLER Unknown message type")
+		}
+
+	}
 }
