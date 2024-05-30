@@ -1,4 +1,4 @@
-export * from './MoneroLogo';
+export * from './BitcoinLogo';
 export * from './MultiversxLogo';
 export * from './CloseIcon';
 export * from './ChevronIcon';

@@ -35,9 +35,13 @@ export const NetworkDrawer = (props: DrawerProps) => {
 
   useEffect(() => {
     const fetchNetworkData = setInterval(() => {
-      const nodeVersion: string = wasmVersion;
-      const peerState: PeerInfo = wasmGetPeerState();
-      setNetworkData({ ...networkData, version: nodeVersion, id: peerState.id, state: peerState.state });
+      try {
+        const nodeVersion: string = wasmVersion;
+        const peerState: PeerInfo = wasmGetPeerState();
+        setNetworkData({ ...networkData, version: nodeVersion, id: peerState.id, state: peerState.state });
+      } catch (error) {
+        console.error(error);
+      }
     }, 50);
 
     return () => clearInterval(fetchNetworkData);
