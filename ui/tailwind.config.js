@@ -12,8 +12,8 @@ module.exports = {
         kanit: ['"Kanit"', ...defaultTheme.fontFamily.sans],
       },
       colors: {
-        primary: colors.purple,
-        secondary: colors.lime,
+        primary: colors.emerald,
+        secondary: colors.sky,
       },
     },
     backgroundImage: {

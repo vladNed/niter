@@ -18,50 +18,60 @@ export const ExploreWidget = () => {
     'Time left',
     'Action'
   ]
-  const [sendToken, setSendToken] = useState<string>('XMR')
+  const [sendToken, setSendToken] = useState<string>('BTC')
   const [getToken, setGetToken] = useState<string>('EGLD')
   const [offers, setOffers] = useState<OfferType[]>([])
+  const [offerIds, setOfferIds] = useState<string[]>([])
 
   const handleSendTokenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     switch (e.target.value) {
-      case 'XMR':
+      case 'BTC':
         if (e.target.id === 'sendOption') {
-          setSendToken('XMR')
+          setSendToken('BTC')
           setGetToken('EGLD')
         } else {
           setSendToken('EGLD')
-          setGetToken('XMR')
+          setGetToken('BTC')
         }
         break
       case 'EGLD':
         if (e.target.id === 'sendOption') {
           setSendToken('EGLD')
-          setGetToken('XMR')
+          setGetToken('BTC')
         } else {
-          setSendToken('XMR')
+          setSendToken('BTC')
           setGetToken('EGLD')
         }
         break
     }
   }
 
-  const onOffersPool = async () => {
-    try {
-      const newOffers = await wasmPollOffers();
-      for (const offer of newOffers) {
-        const newOffer = {
-          id: offer,
-        }
-        setOffers([...offers, newOffer]);
-      }
-    } catch (e) {
-      console.error('Error polling offers', e);
-    }
-  }
+
 
   useEffect(() => {
-    setInterval(onOffersPool, OFFERS_POLLING_INTERVAL);
-  }, []);
+    const onOffersPool = async () => {
+      try {
+        const newOffers = await wasmPollOffers();
+        for(let i = 0; i < newOffers.length; i++) {
+          if (!offerIds.includes(newOffers[i].id)) {
+            let offer = newOffers[i];
+            setOffers([...offers, offer]);
+            setOfferIds([...offerIds, offer.id]);
+          }
+        }
+      } catch (e) {
+        console.error('Error polling offers', e);
+      }
+    }
+
+    onOffersPool();
+
+    const offersPool = setInterval(onOffersPool, OFFERS_POLLING_INTERVAL);
+
+    return () => clearInterval(offersPool);
+
+
+  }, [offers, offerIds, setOffers, setOfferIds]);
 
   return (
     <div className='h-full container flex flex-col text-neutral-200 min-w-[1000px]'>
@@ -69,19 +79,19 @@ export const ExploreWidget = () => {
         <div className='flex place-items-center gap-4'>
           <div className='text-xl font-bold'>Swap</div>
           <select id='sendOption' value={sendToken} className='text-neutral-200 bg-neutral-800 px-2 py-1 rounded-xl' onChange={handleSendTokenChange}>
-            <option value='XMR' selected>XMR</option>
-            <option value='EGLD'>EGLD</option>
+            <option key='BTC' value='BTC'>BTC</option>
+            <option key='EGLD' value='EGLD'>EGLD</option>
           </select>
           <div className='text-xl font-bold'>for</div>
           <select id='getOption' value={getToken} className='text-neutral-200 bg-neutral-800 px-2 py-1 rounded-xl' onChange={handleSendTokenChange}>
-            <option value='XMR'>XMR</option>
-            <option value='EGLD' selected>EGLD</option>
+            <option key='BTC' value='BTC'>BTC</option>
+            <option key='EGLD' value='EGLD'>EGLD</option>
           </select>
         </div>
         <input type='text' className='px-4 bg-neutral-800 outline-none border-[1px] border-neutral-700 rounded-xl' placeholder='Enter amount' />
         <button className='bg-neutral-800 text-neutral-400 py-2 px-4 rounded-xl'>Clear all</button>
-        <select className='text-neutral-200 bg-neutral-800 px-2 py-1 rounded-xl'>
-          <option value='' selected disabled>Sort by</option>
+        <select className='text-neutral-200 bg-neutral-800 px-2 py-1 rounded-xl' defaultValue='Sort by'>
+          <option value='Sort by' disabled>Sort by</option>
           {columns.map((column) => (
             <option key={column} value={column}>{column}</option>
           ))}
@@ -98,7 +108,7 @@ export const ExploreWidget = () => {
           </thead>
           <tbody className='text-center bg-neutral-800 '>
             {offers.length > 0 && offers.map((offer) => (
-              <tr className='border-b-2 border-neutral-700'>
+              <tr key={offer.id} className='border-b-2 border-neutral-700'>
                 <td className='py-4 '><span className='text-neutral-400'>s-</span>{offer.id}</td>
                 <td className='py-4'>{offer.getAmount || 'N/A'}</td>
                 <td className='py-4'>{offer.sendAmount || 'N/A'}</td>

@@ -1,6 +1,6 @@
 import { CreateOfferButton } from "components/Button";
 import { ConnectWalletPlaceholderBtn } from "components/Button/ConnectWalletButton";
-import { MoneroLogo, MultiversxLogo } from "components/Icons";
+import { BTCLogo, MultiversxLogo } from "components/Icons";
 import { useState } from "react";
 import { SearchOfferWidgetProps, SideToken, SwapFieldProps } from "types";
 
@@ -25,7 +25,7 @@ const SwapField = (props: SwapFieldProps) => {
 }
 
 const tokens: SideToken[] = [
-  { ticker: 'XMR', name: 'Monero', icon: <MoneroLogo /> },
+  { ticker: 'BTC', name: 'Bitcoin', icon: <BTCLogo /> },
   { ticker: 'EGLD', name: 'Multiversx', icon: <MultiversxLogo /> }
 ]
 

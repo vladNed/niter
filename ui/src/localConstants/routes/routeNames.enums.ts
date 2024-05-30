@@ -2,5 +2,6 @@ export enum RouteNamesEnum {
   home = '/',
   swap = '/swap',
   unlock = '/unlock',
-  explore = '/explore'
+  explore = '/explore',
+  connect = '/connect',
 }

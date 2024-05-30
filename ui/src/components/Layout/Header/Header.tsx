@@ -56,6 +56,7 @@ export const Header = () => {
   const navItems = [
     { title: 'Swap', path: RouteNamesEnum.swap },
     { title: 'Explore', path: RouteNamesEnum.explore },
+    { title: 'Connect', path: RouteNamesEnum.connect}
   ]
 
   return (
