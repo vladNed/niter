@@ -3,11 +3,17 @@ module github.com/indexone/niter/core
 go 1.21.3
 
 require (
+	github.com/btcsuite/btcd v0.24.0
+	github.com/btcsuite/btcd/btcutil v1.1.5
+	github.com/c0mm4nd/go-ripemd v0.0.0-20200326052756-bd1759ad7d10
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/pion/webrtc/v4 v4.0.0-beta.17
 	nhooyr.io/websocket v1.8.11
 )
 
 require (
+	github.com/btcsuite/btcd/btcec/v2 v2.3.3 // indirect
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/pion/datachannel v1.5.6 // indirect
 	github.com/pion/dtls/v2 v2.2.10 // indirect

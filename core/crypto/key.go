@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
+	"github.com/c0mm4nd/go-ripemd"
 	"encoding/hex"
 
 )
@@ -31,4 +32,14 @@ func GenerateKey() (*NetworkKey, error) {
 		PrivateKey: priv,
 		PublicKey:  pub,
 	}, nil
+}
+
+func Hash160(data []byte) []byte {
+	shaHasher := sha256.New()
+	shaHasher.Write(data)
+	shaHash := shaHasher.Sum(nil)
+
+	ripemdHasher := ripemd.New160()
+	ripemdHasher.Write(shaHash)
+	return ripemdHasher.Sum(nil)
 }

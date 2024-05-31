@@ -47,3 +47,22 @@ func Hash(data []byte) string {
 func GetTimestamp() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
+
+
+func ToIntArray(data []byte) []int {
+	intData := make([]int, len(data))
+	for i, b := range data {
+		intData[i] = int(b)
+	}
+
+	return intData
+}
+
+func ToByteArray(data []int) []byte {
+	byteData := make([]byte, len(data))
+	for i, b := range data {
+		byteData[i] = byte(b)
+	}
+
+	return byteData
+}
