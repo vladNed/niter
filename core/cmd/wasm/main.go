@@ -14,6 +14,7 @@ import (
 	"github.com/indexone/niter/core/p2p"
 	"github.com/indexone/niter/core/p2p/protocol"
 	"github.com/indexone/niter/core/utils"
+	"github.com/indexone/niter/core/bitcoin"
 )
 
 var (
@@ -23,9 +24,10 @@ var (
 	peer          *p2p.Peer
 	eventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
 	msgChannel    chan schemas.Message = make(chan schemas.Message)
+	btcWallet     *bitcoin.Wallet
 )
 
-const VERSION = "0.1.25"
+const VERSION = "0.1.0"
 
 // Sets the config within the wasm file. This can only be done at initialization.
 // The input of the function is a JSON string representing the config.
@@ -348,16 +350,81 @@ func pollExchangeData(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
+// Wallet methods
+func initWallet(this js.Value, args []js.Value) interface{} {
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+
+		go func() {
+			if len(args) == 1 {
+				wif := args[0].String()
+				chainParams := config.Config.GetChainParams()
+				wallet, err := bitcoin.LoadWallet(wif, chainParams)
+				if err != nil {
+					reject.Invoke(js.Global().Get("Error").New("Could not load BTC wallet"))
+					resolve.Invoke(js.Undefined())
+					return
+				}
+				btcWallet = wallet
+				resolve.Invoke(js.ValueOf(wif))
+				return
+			}
+
+			chainParams := config.Config.GetChainParams()
+			wallet, err := bitcoin.GenerateWallet(chainParams)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Could not generate BTC wallet"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
+			btcWallet = wallet
+			wif, err := btcWallet.WIF()
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Could not generate WIF"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			resolve.Invoke(js.ValueOf(wif))
+		}()
+
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
+func getWalletAddress(this js.Value, args []js.Value) interface{} {
+	if btcWallet == nil {
+		return js.Global().Get("Error").New("Wallet not initialized")
+	}
+
+	address, err := btcWallet.Address().Serialize()
+	if err != nil {
+		return js.Global().Get("Error").New("Could not fetch segwit address")
+	}
+	return js.ValueOf(address)
+}
+
 func main() {
 	jsGlobal := js.Global()
+
+	// System
 	jsGlobal.Set("wasmVersion", VERSION)
 	jsGlobal.Set("wasmInit", js.FuncOf(initialize))
+
+	// P2P
 	jsGlobal.Set("wasmCreateOffer", js.FuncOf(createOffer))
 	jsGlobal.Set("wasmCreateAnswer", js.FuncOf(createAnswer))
 	jsGlobal.Set("wasmPollOffers", js.FuncOf(pollOffers))
 	jsGlobal.Set("wasmGetPeerState", js.FuncOf(getPeerState))
 	jsGlobal.Set("wasmSendData", js.FuncOf(wasmSendData))
 	jsGlobal.Set("wasmPollExchangeData", js.FuncOf(pollExchangeData))
+
+	// Wallet
+	jsGlobal.Set("wasmInitWallet", js.FuncOf(initWallet))
+	jsGlobal.Set("wasmGetWalletAddress", js.FuncOf(getWalletAddress))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})

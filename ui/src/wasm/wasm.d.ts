@@ -67,3 +67,6 @@ declare function wasmPollExchangeData(): Promise<PeerData[]>;
  * Sends data to the peer.
  */
 declare function wasmSendData(data: string): Promise<void>;
+
+
+declare function wasmInitWallet(wif?: string): Promise<string>;

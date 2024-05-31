@@ -52,8 +52,8 @@ const AppContent = () => {
       }}
     >
       <AxiosInterceptorContext.Listener>
-        <Layout>
-          <LoadWasm>
+        <LoadWasm>
+          <Layout>
             <TransactionsToastList />
             <NotificationModal />
             <SignTransactionsModals />
@@ -68,8 +68,8 @@ const AppContent = () => {
               ))}
               <Route path='*' element={<PageNotFound />} />
             </Routes>
-          </LoadWasm>
-        </Layout>
+          </Layout>
+        </LoadWasm>
       </AxiosInterceptorContext.Listener>
     </DappProvider>
   );

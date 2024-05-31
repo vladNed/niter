@@ -53,7 +53,7 @@ type Wallet struct {
 	params     *chaincfg.Params
 }
 
-func LoadWallet(wif string, chainParams chaincfg.Params) (*Wallet, error) {
+func LoadWallet(wif string, chainParams *chaincfg.Params) (*Wallet, error) {
 	wifKey, err := btcutil.DecodeWIF(wif)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func LoadWallet(wif string, chainParams chaincfg.Params) (*Wallet, error) {
 
 	return &Wallet{
 		privateKey: wifKey.PrivKey,
-		params:     &chainParams,
+		params:     chainParams,
 	}, nil
 }
 
@@ -90,7 +90,7 @@ func (w *Wallet) Address() *Address {
 
 // GenerateWallet generates a new wallet with a random private key.
 // TODO: Map network to chain config better
-func GenerateWallet(chainParams chaincfg.Params) (*Wallet, error) {
+func GenerateWallet(chainParams *chaincfg.Params) (*Wallet, error) {
 	privateKey, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		return nil, err
@@ -98,6 +98,6 @@ func GenerateWallet(chainParams chaincfg.Params) (*Wallet, error) {
 
 	return &Wallet{
 		privateKey: privateKey,
-		params:     &chainParams,
+		params:     chainParams,
 	}, nil
 }
