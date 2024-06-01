@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"syscall/js"
 
+	"github.com/indexone/niter/core/bitcoin"
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery"
 	"github.com/indexone/niter/core/discovery/schemas"
@@ -14,7 +15,6 @@ import (
 	"github.com/indexone/niter/core/p2p"
 	"github.com/indexone/niter/core/p2p/protocol"
 	"github.com/indexone/niter/core/utils"
-	"github.com/indexone/niter/core/bitcoin"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 	wsClient      *discovery.WSClient
 	peer          *p2p.Peer
 	eventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
-	msgChannel    chan schemas.Message = make(chan schemas.Message)
+	msgChannel    chan schemas.Message     = make(chan schemas.Message)
 	btcWallet     *bitcoin.Wallet
 )
 
@@ -143,6 +143,21 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 		resolve := inputs[0]
 		reject := inputs[1]
 		go func() {
+
+			if len(args) == 0 {
+				reject.Invoke(js.Global().Get("Error").New("No arguments provided"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			// Parse the offer details from the app input
+			offerJson := args[0].String()
+			var offerDetails schemas.OfferDetails
+			if err := json.Unmarshal([]byte(offerJson), &offerDetails); err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error parsing offer details: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
 			err := peer.StartInitiator()
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error starting initiator: " + err.Error()))
@@ -155,7 +170,7 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 				resolve.Invoke(js.Undefined())
 				return
 			}
-			event := <- eventsChannel
+			event := <-eventsChannel
 			if event != protocol.InitiatorICECandidate {
 				reject.Invoke(js.Global().Get("Error").New("Error gathering ICE candidates"))
 				resolve.Invoke(js.Undefined())
@@ -174,11 +189,13 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 				resolve.Invoke(js.Undefined())
 				return
 			}
-			offerId := utils.Hash([]byte(encodedSDP))
+			offerId := utils.Hash([]byte(encodedSDP))[:6]
+			peer.ActiveOfferId = offerId
 			offerPayload := schemas.OfferMessage{
 				Type:     localSess.Type.String(),
-				OfferID:  offerId[:6],
+				OfferID:  offerId,
 				OfferSDP: encodedSDP,
+				OfferDetails: offerDetails,
 			}
 			err = wsClient.Write(offerPayload)
 			if err != nil {
@@ -187,7 +204,7 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 				return
 			}
 			peer.State = protocol.PeerNegotiating
-			resolve.Invoke(js.ValueOf(offerId[:6]))
+			resolve.Invoke(js.ValueOf(offerId))
 		}()
 
 		return nil
@@ -219,6 +236,7 @@ func createAnswer(this js.Value, args []js.Value) interface{} {
 				resolve.Invoke(js.Undefined())
 				return
 			}
+			peer.ActiveOfferId = args[0].String()
 			offerData, ok := discovery.Cache.GetOffer(args[0].String())
 			if !ok {
 				reject.Invoke(js.Global().Get("Error").New("Offer not found"))
@@ -238,7 +256,7 @@ func createAnswer(this js.Value, args []js.Value) interface{} {
 				resolve.Invoke(js.Undefined())
 				return
 			}
-			event := <- eventsChannel
+			event := <-eventsChannel
 			if event != protocol.ResponderICECandidate {
 				reject.Invoke(js.Global().Get("Error").New("Error gathering ICE candidates"))
 				resolve.Invoke(js.Undefined())

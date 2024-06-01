@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -65,4 +66,14 @@ func ToByteArray(data []int) []byte {
 	}
 
 	return byteData
+}
+
+func GenerateSeed() ([]byte, error) {
+	secret := make([]byte, 32)
+	_, err := rand.Read(secret)
+	if err != nil {
+		return nil, err
+	}
+
+	return secret, nil
 }

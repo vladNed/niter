@@ -2,7 +2,6 @@ package protocol
 
 // The Peer state machine enumeration
 type PeerState int
-
 const (
 
 	// PeerIdle is the initial state of the peer
@@ -53,13 +52,28 @@ func (p PeerState) String() string {
 
 // PeerEvents is the enumeration of the events that can be triggered on the peer
 type PeerEvents int
-
 const (
 	UnknownEvent PeerEvents = iota
 	ResponderICECandidate
 	InitiatorICECandidate
 )
 
+// The events that can be triggered during a swap
+type SEvents int
+const (
+	SInit SEvents = iota
+	SInitDone
+	SLockedEGLD
+	SLockedBTC
+	SRefund
+	SClaimed
+	SOk
+	SFailed
+)
 
-
-
+type SwapState interface {
+	Start()
+	Close()
+	RunEventHandler()
+	handleSwapEvent(event SEvents)
+}

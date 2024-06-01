@@ -1,13 +1,17 @@
 package p2p
 
 import (
+	"context"
 	"encoding/base32"
+	"errors"
 	"fmt"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/pion/webrtc/v4"
 
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/crypto"
+	"github.com/indexone/niter/core/discovery"
 	msgSchemas "github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
 	"github.com/indexone/niter/core/p2p/protocol"
@@ -27,6 +31,8 @@ type RemotePeerInfo struct {
 }
 
 type Peer struct {
+
+	// WebRTC Peer Data
 	LocalConnection *webrtc.PeerConnection
 	DataChannel     *webrtc.DataChannel
 	State           protocol.PeerState
@@ -35,12 +41,23 @@ type Peer struct {
 	RemotePeer      *RemotePeerInfo
 	eventsChannel   chan protocol.PeerEvents
 	msgChannel      chan msgSchemas.Message
+
+	// Swap Data
+	ActiveOfferId string
+	swapChannel   chan msgSchemas.SwapMessage
+	swapState     protocol.SwapState
+
+	// Context
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewPeer(eventChannel chan protocol.PeerEvents, msgChannel chan msgSchemas.Message) (*Peer, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	keyPair, err := crypto.GenerateKey()
 	if err != nil {
 		logger.Warn("Error generating key pair: ", err.Error())
+		cancel()
 		return nil, err
 	}
 	peer := &Peer{
@@ -50,7 +67,12 @@ func NewPeer(eventChannel chan protocol.PeerEvents, msgChannel chan msgSchemas.M
 		KeyPair:         keyPair,
 		RemotePeer:      nil,
 		eventsChannel:   eventChannel,
+		ActiveOfferId:   "",
 		msgChannel:      msgChannel,
+		swapState:       nil,
+		ctx:             ctx,
+		cancel:          cancel,
+		swapChannel:     make(chan msgSchemas.SwapMessage),
 	}
 	logger.Debug("Peer initialized")
 	go peer.MessageHandler()
@@ -104,6 +126,9 @@ func (p *Peer) ResetPeer() {
 	p.State = protocol.PeerIdle
 	p.ExchangeData = nil
 	p.RemotePeer = nil
+	p.cancel()
+	p.ctx, p.cancel = context.WithCancel(context.Background())
+	go p.MessageHandler()
 }
 
 func (p *Peer) setupConnectionCallbacks() {
@@ -124,18 +149,19 @@ func (p *Peer) setupConnectionCallbacks() {
 		}
 	})
 	p.LocalConnection.OnICECandidate(func(candidate *webrtc.ICECandidate) {
-		if candidate == nil {
-			switch p.State {
-			case protocol.PeerInitiator:
-				logger.Debug("Gathering complete")
-				p.eventsChannel <- protocol.InitiatorICECandidate
-			case protocol.PeerResponder:
-				logger.Debug("Gathering complete")
-				p.eventsChannel <- protocol.ResponderICECandidate
-			default:
-				logger.Warn("Unknown peer state")
-			}
+		if candidate != nil {
 			return
+		}
+
+		switch p.State {
+		case protocol.PeerInitiator:
+			logger.Debug("Gathering complete")
+			p.eventsChannel <- protocol.InitiatorICECandidate
+		case protocol.PeerResponder:
+			logger.Debug("Gathering complete")
+			p.eventsChannel <- protocol.ResponderICECandidate
+		default:
+			logger.Warn("Unknown peer state")
 		}
 	})
 }
@@ -200,6 +226,52 @@ func (p *Peer) SendData(data []byte) error {
 	return nil
 }
 
+func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
+	peerId := string(msgData.Data)
+	if peerId[:3] != protocol.HRP {
+		logger.Debug("Invalid peer hrp")
+		return errors.New("invalid peer id")
+	}
+	if len(peerId[4:]) != 20 {
+		logger.Debug("Invalid peer data")
+		return errors.New("invalid peer id")
+	}
+	p.RemotePeer = &RemotePeerInfo{Id: peerId}
+	offerDetails, ok := discovery.Cache.GetOffer(p.ActiveOfferId)
+	if !ok {
+		logger.Debug("Offer not found")
+		return errors.New("offer not found")
+	}
+
+	var offer msgSchemas.OfferMessage
+	err := mapstructure.Decode(offerDetails, &offer)
+	if err != nil {
+		logger.Debug("Error decoding offer: ", err.Error())
+		return errors.New("error decoding offer")
+	}
+	go p.swapMessageHandler()
+	if offer.OfferDetails.SwapCreator == p.Id() {
+		if offer.OfferDetails.SendingCurrency == "EGLD" {
+			logger.Debug("INITIATOR")
+			p.swapState = protocol.NewInitiatorState(&offer.OfferDetails, p.swapChannel)
+			p.swapState.Start()
+		} else {
+			logger.Debug("RESPONDER")
+			// TODO: Add support for other currencies
+		}
+	} else {
+		if offer.OfferDetails.ReceivingCurrency == "EGLD" {
+			logger.Debug("INITIATOR")
+			p.swapState = protocol.NewInitiatorState(&offer.OfferDetails, p.swapChannel)
+			p.swapState.Start()
+		} else {
+			logger.Debug("RESPONDER")
+		}
+	}
+	p.State = protocol.PeerCommunicating
+	return nil
+}
+
 func (p *Peer) LocalDataChannelHandlers() {
 	dataChannel, err := p.LocalConnection.CreateDataChannel(protocol.DATA_CHANNEL_LABEL, nil)
 	if err != nil {
@@ -215,10 +287,12 @@ func (p *Peer) LocalDataChannelHandlers() {
 	dataChannel.OnMessage(func(msg webrtc.DataChannelMessage) {
 		switch p.State {
 		case protocol.PeerAuthenticating:
-			p.RemotePeer = &RemotePeerInfo{
-				Id: string(msg.Data),
+			err := p.peerAuthentication(msg)
+			if err != nil {
+				logger.Warn("Error authenticating peer: ", err.Error())
+				go p.ResetPeer()
+				return
 			}
-			p.State = protocol.PeerCommunicating
 		case protocol.PeerCommunicating:
 			p.ExchangeData = append(p.ExchangeData, PeerData{
 				Side:      "remote",
@@ -252,11 +326,15 @@ func (p *Peer) RemoteDataChannelHandlers() {
 		d.OnMessage(func(msg webrtc.DataChannelMessage) {
 			switch p.State {
 			case protocol.PeerAuthenticating:
-				p.RemotePeer = &RemotePeerInfo{
-					Id: string(msg.Data),
+				err := p.peerAuthentication(msg)
+				if err != nil {
+					logger.Warn("Error authenticating peer: ", err.Error())
+					go p.ResetPeer()
+					return
 				}
-				p.State = protocol.PeerCommunicating
 			case protocol.PeerCommunicating:
+				msgData := msgSchemas.DeserializeSwapMessage(msg.Data)
+				p.swapChannel <- *msgData
 				p.ExchangeData = append(p.ExchangeData, PeerData{
 					Side:      "remote",
 					Data:      string(msg.Data),
@@ -279,13 +357,36 @@ func (p *Peer) RemoteDataChannelHandlers() {
 // and processes them accordingly.
 func (p *Peer) MessageHandler() {
 	for {
-		msg := <-p.msgChannel
-		switch msgType := msg.(type) {
-		case *msgSchemas.AnswerMessage:
-			p.SetOffer(msgType.AnswerSDP)
-		default:
-			logger.Warn("HANDLER Unknown message type")
+		select {
+		case <-p.ctx.Done():
+			logger.Debug("Disconnecting peer message handler closed")
+			return
+		case signallingMessage := <-p.msgChannel:
+			switch msgType := signallingMessage.(type) {
+			case *msgSchemas.AnswerMessage:
+				p.SetOffer(msgType.AnswerSDP)
+			default:
+				logger.Warn("Unknown message type")
+			}
 		}
+	}
+}
 
+// The swap message handler listens for swap message from the swap state
+// manager and sends them to the remote peer.
+func (p *Peer) swapMessageHandler() {
+	for {
+		select {
+		case <-p.ctx.Done():
+			logger.Debug("Swap message handler closed")
+			return
+		case swapCtxMessage := <-p.swapChannel:
+			data := swapCtxMessage.Serialize()
+			err := p.SendData(data)
+			if err != nil {
+				logger.Warn("Error sending swap message: ", err.Error())
+				continue
+			}
+		}
 	}
 }
