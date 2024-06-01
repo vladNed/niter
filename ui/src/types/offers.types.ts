@@ -13,9 +13,14 @@ export type TradeTypeOptions = {
   value: string;
 }
 
-export type OfferData = {
-  receivingCoin: Coin;
-  givingCoin: Coin;
+interface OfferDetails {
+  swapCreator: string;
+  sendingAmount: string;
+  sendingCurrency: string;
   receivingAmount: string;
-  givingAmount: string;
+  receivingCurrency: string;
+  createdAt: string;
+  expiresAt: string;
 }
+
+export type { OfferDetails }

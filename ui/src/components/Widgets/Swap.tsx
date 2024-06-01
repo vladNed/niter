@@ -1,8 +1,14 @@
 import { CreateOfferButton } from "components/Button";
 import { ConnectWalletPlaceholderBtn } from "components/Button/ConnectWalletButton";
 import { BTCLogo, MultiversxLogo } from "components/Icons";
-import { useState } from "react";
-import { SearchOfferWidgetProps, SideToken, SwapFieldProps } from "types";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  type OfferDetails,
+  type SearchOfferWidgetProps,
+  SideToken,
+  SwapFieldProps
+} from "types";
 
 
 const SwapField = (props: SwapFieldProps) => {
@@ -17,7 +23,14 @@ const SwapField = (props: SwapFieldProps) => {
             <div className='text-sm leading-tight'>{props.name}</div>
           </div>
         </div>
-        <input type="text" placeholder='0' className='col-span-9 w-full text-right bg-neutral-800 outline-none text-4xl text-center' />
+        <input
+          onChange={props.onChange}
+          value={props.value}
+          data-side={props.dataSide}
+          type="text"
+          placeholder='0'
+          className='col-span-9 w-full text-right bg-neutral-800 outline-none text-4xl text-center'
+        />
       </div>
       <div className='h-[1rem]'></div>
     </div>
@@ -30,11 +43,15 @@ const tokens: SideToken[] = [
 ]
 
 export const SwapWidget = (props: SearchOfferWidgetProps) => {
-  const [swapMode, setSwapMode] = useState<'Create' | 'Find'>('Find')
+  const [swapMode, setSwapMode] = useState<'Create' | 'Find'>('Create')
+  const navigate = useNavigate();
   const swapModeText = swapMode === 'Find' ? 'Find an existing offer' : 'Create a new offer'
+  const [errMsg, setErrMsg] = useState<string>('')
 
   const [sendingToken, setSendingToken] = useState<SideToken>(tokens[0])
+  const [sendingAmount, setSendingAmount] = useState<string>('')
   const [receivingToken, setReceivingToken] = useState<SideToken>(tokens[1])
+  const [receivingAmount, setReceivingAmount] = useState<string>('')
 
   const handleSwapMode = (mode: 'Create' | 'Find') => {
     setSwapMode(mode)
@@ -44,6 +61,50 @@ export const SwapWidget = (props: SearchOfferWidgetProps) => {
     const temp = sendingToken
     setSendingToken(receivingToken)
     setReceivingToken(temp)
+
+    const tempAmount = sendingAmount
+    setSendingAmount(receivingAmount)
+    setReceivingAmount(tempAmount)
+  }
+
+  const handleSubmitOffer = async () => {
+    if (!sendingAmount || !receivingAmount) {
+      setErrMsg('Not all amounts are provided')
+      return
+    }
+
+    const peerState = wasmGetPeerState()
+    const data: OfferDetails = {
+      swapCreator: peerState.id,
+      sendingAmount: sendingAmount,
+      sendingCurrency: sendingToken.ticker,
+      receivingAmount: receivingAmount,
+      receivingCurrency: receivingToken.ticker,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString()
+    }
+    const offerId = await wasmCreateOffer(JSON.stringify(data))
+    setSendingAmount('')
+    setReceivingAmount('')
+    setErrMsg('')
+    navigate('/explore');
+  }
+
+  const handleViewOffers = () => {
+    console.log('View offers')
+  }
+
+  const handleSwapAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const isInteger = /^\d*\.?\d{0,2}$/.test(value)
+    if (isInteger || value === '') {
+      const side = e.target.getAttribute('data-side')
+      if (side === 'sending') {
+        setSendingAmount(value)
+      } else {
+        setReceivingAmount(value)
+      }
+    }
   }
 
   return (
@@ -75,13 +136,33 @@ export const SwapWidget = (props: SearchOfferWidgetProps) => {
         <span className='text-left text-2xl text-neutral-500'>{swapModeText}</span>
       </div>
       <div className='flex flex-col gap-1'>
-        <SwapField icon={sendingToken.icon} ticker={sendingToken.ticker} name={sendingToken.name} side='Swap' />
-        <SwapField icon={receivingToken.icon} ticker={receivingToken.ticker} name={receivingToken.name} side='For' />
+        <SwapField
+          icon={sendingToken.icon}
+          ticker={sendingToken.ticker}
+          name={sendingToken.name}
+          side='Swap'
+          value={sendingAmount}
+          onChange={handleSwapAmountChange}
+          dataSide="sending"
+        />
+        <SwapField
+          icon={receivingToken.icon}
+          ticker={receivingToken.ticker}
+          name={receivingToken.name}
+          side='For'
+          value={receivingAmount}
+          onChange={handleSwapAmountChange}
+          dataSide="receiving"
+        />
         {props.isPlaceholder ?
           <ConnectWalletPlaceholderBtn /> :
-          <CreateOfferButton text={swapMode === 'Find' ? 'See offers' : 'Create offer'} />
+          <CreateOfferButton
+            text={swapMode === 'Find' ? 'See offers' : 'Create offer'}
+            onClick={swapMode === 'Find' ? handleViewOffers : handleSubmitOffer}
+          />
         }
         {swapMode === 'Find' && <span className='text-center text-neutral-500 px-10'>Tip: If there are not active offers, don't worry, you can be the one to create the offer.</span>}
+        {swapMode === 'Create' && errMsg && <span className='text-center text-red-400 mt-6'>{errMsg}</span>}
       </div>
     </div>
   )

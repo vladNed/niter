@@ -15,6 +15,9 @@ export interface SwapFieldProps {
   ticker: string;
   name: string;
   side: 'Swap' | 'For';
+  value: string;
+  dataSide: 'sending' | 'receiving';
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export interface SideToken {
@@ -23,7 +26,7 @@ export interface SideToken {
   icon: React.ReactElement;
 }
 
-export interface SearchOfferWidgetProps {
+interface SearchOfferWidgetProps {
   isPlaceholder: boolean;
 }
 
@@ -31,3 +34,7 @@ export interface DrawerProps {
   isOpen: boolean;
   toggleDrawer: () => void;
 }
+
+export type {
+  SearchOfferWidgetProps,
+};

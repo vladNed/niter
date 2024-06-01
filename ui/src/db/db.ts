@@ -1,4 +1,3 @@
-import { Err } from '@multiversx/sdk-core/out';
 import { DB_NAME, DB_VERSION } from 'config';
 import Dexie, { Table } from 'dexie';
 

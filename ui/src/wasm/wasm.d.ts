@@ -31,7 +31,7 @@ declare function wasmInit(config: string): Promise<void>;
 /**
  * The function that creates an offer and SDP for the peer.
  */
-declare function wasmCreateOffer(): Promise<string>;
+declare function wasmCreateOffer(offer: string): Promise<string>;
 
 /**
  * The function that creates an answer and SDP for the peer.
