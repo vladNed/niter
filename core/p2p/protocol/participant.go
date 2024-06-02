@@ -2,13 +2,30 @@ package protocol
 
 import (
 	"context"
+
+	"github.com/indexone/niter/core/discovery/schemas"
 )
 
-
 type ParticipantState struct {
-	ctx          context.Context
-	cancel       context.CancelFunc
-	eventChannel chan SEvents
+	// Managing the state of the Initiator
+	ctx             context.Context
+	cancel          context.CancelFunc
+	eventChannel    chan SEvents
+	sendPeerChannel chan schemas.SwapMessage
+
+	// Offer Details
+	receivingAmount   string
+	receivingCurrency string
+	sendingAmount     string
+	sendingCurrency   string
+
+	swapHeight uint64
+
+	// State Machine
+	events      []SEvents
+	secret      []byte
+	secretProof []byte
+	peerProof   []byte
 }
 
 func (i *ParticipantState) RunEventHandler() {
@@ -35,11 +52,28 @@ func (i *ParticipantState) handleSwapEvent(event SEvents) {
 	}
 }
 
-func NewParticipantState() *ParticipantState {
+func (i *ParticipantState) Close() {
+	i.cancel()
+}
+
+func (i *ParticipantState) Start() {
+	logger.Debug("InitiatorState: Starting the state machine")
+	go i.RunEventHandler()
+	i.eventChannel <- SInit
+}
+
+func NewParticipantState(offerDetails *schemas.OfferDetails, sendPeerChannel chan schemas.SwapMessage) *ParticipantState {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ParticipantState{
-		ctx:          ctx,
-		cancel:       cancel,
-		eventChannel: make(chan SEvents),
+		ctx:               ctx,
+		cancel:            cancel,
+		eventChannel:      make(chan SEvents),
+		sendPeerChannel:   sendPeerChannel,
+		receivingAmount:   offerDetails.ReceivingAmount,
+		receivingCurrency: offerDetails.ReceivingCurrency,
+		sendingAmount:     offerDetails.SendingAmount,
+		sendingCurrency:   offerDetails.SendingCurrency,
+		swapHeight:        0,
+		events:            []SEvents{},
 	}
 }

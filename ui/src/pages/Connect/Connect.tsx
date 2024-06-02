@@ -27,8 +27,6 @@ export const Connect = () => {
   }
 
   const handleCreateOffer = async () => {
-    const newOffer = await wasmCreateOffer();
-    setOfferId(newOffer);
   }
 
   const handleClipboardCopy = () => {

@@ -252,22 +252,18 @@ func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
 	go p.swapMessageHandler()
 	if offer.OfferDetails.SwapCreator == p.Id() {
 		if offer.OfferDetails.SendingCurrency == "EGLD" {
-			logger.Debug("INITIATOR")
 			p.swapState = protocol.NewInitiatorState(&offer.OfferDetails, p.swapChannel)
-			p.swapState.Start()
 		} else {
-			logger.Debug("RESPONDER")
-			// TODO: Add support for other currencies
+			p.swapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
 		}
 	} else {
 		if offer.OfferDetails.ReceivingCurrency == "EGLD" {
-			logger.Debug("INITIATOR")
 			p.swapState = protocol.NewInitiatorState(&offer.OfferDetails, p.swapChannel)
-			p.swapState.Start()
 		} else {
-			logger.Debug("RESPONDER")
+			p.swapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
 		}
 	}
+	p.swapState.Start()
 	p.State = protocol.PeerCommunicating
 	return nil
 }
