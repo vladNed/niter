@@ -14,6 +14,7 @@ import (
 	"github.com/indexone/niter/core/logging"
 	"github.com/indexone/niter/core/p2p"
 	"github.com/indexone/niter/core/p2p/protocol"
+	txs "github.com/indexone/niter/core/transactions"
 	"github.com/indexone/niter/core/utils"
 )
 
@@ -25,6 +26,11 @@ var (
 	eventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
 	msgChannel    chan schemas.Message     = make(chan schemas.Message)
 	btcWallet     *bitcoin.Wallet
+
+	// Broadcast transaction
+	txPool        *txs.TxPool = txs.NewTxPool()
+	txPoolChannel chan txs.Tx = make(chan txs.Tx)
+	txPoolSignal  chan uint8  = make(chan uint8)
 )
 
 const VERSION = "0.1.0"
@@ -192,9 +198,9 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 			offerId := utils.Hash([]byte(encodedSDP))[:6]
 			peer.ActiveOfferId = offerId
 			offerPayload := schemas.OfferMessage{
-				Type:     localSess.Type.String(),
-				OfferID:  offerId,
-				OfferSDP: encodedSDP,
+				Type:         localSess.Type.String(),
+				OfferID:      offerId,
+				OfferSDP:     encodedSDP,
 				OfferDetails: offerDetails,
 			}
 			err = wsClient.Write(offerPayload)
@@ -425,7 +431,44 @@ func getWalletAddress(this js.Value, args []js.Value) interface{} {
 	return js.ValueOf(address)
 }
 
+func getPendingBroadcast(this js.Value, args []js.Value) interface{} {
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+
+		go func() {
+			pendingTx := txPool.Next()
+			if pendingTx == nil {
+				resolve.Invoke(js.ValueOf(nil))
+				reject.Invoke(js.Undefined())
+				return
+			}
+
+			txJson := pendingTx.Serialize()
+			resolve.Invoke(js.ValueOf(txJson))
+			reject.Invoke(js.Undefined())
+		}()
+
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
+func markPendingBroadcast(this js.Value, args []js.Value) interface{} {
+	if len(args) == 0 {
+		return js.Global().Get("Error").New("No arguments provided")
+	}
+
+	txQueueId := args[0].Int()
+	txPool.Mark()
+	txPoolSignal <- uint8(txQueueId)
+
+	return js.ValueOf(true)
+}
+
 func main() {
+	go txs.RunTxPoolHandler(txPool, txPoolChannel)
 	jsGlobal := js.Global()
 
 	// System
@@ -443,6 +486,10 @@ func main() {
 	// Wallet
 	jsGlobal.Set("wasmInitWallet", js.FuncOf(initWallet))
 	jsGlobal.Set("wasmGetWalletAddress", js.FuncOf(getWalletAddress))
+
+	// Events
+	jsGlobal.Set("wasmGetPendingBroadcast", js.FuncOf(getPendingBroadcast))
+	jsGlobal.Set("wasmMarkPendingBroadcast", js.FuncOf(markPendingBroadcast))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})
