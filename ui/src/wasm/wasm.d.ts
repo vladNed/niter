@@ -58,10 +58,6 @@ declare function wasmMakeConnect(): Promise<string>;
  */
 declare function wasmConnect(sdp: string): Promise<string>;
 
-/**
- * The function that polls exchange data.
- */
-declare function wasmPollExchangeData(): Promise<PeerData[]>;
 
 /**
  * Sends data to the peer.
@@ -69,4 +65,6 @@ declare function wasmPollExchangeData(): Promise<PeerData[]>;
 declare function wasmSendData(data: string): Promise<void>;
 
 
-declare function wasmInitWallet(wif?: string): Promise<string>;
+declare function wasmInitWallet(wif?: string, mvxAddress?: string): Promise<string>;
+
+declare function wasmGetSwapEvents(): string[];

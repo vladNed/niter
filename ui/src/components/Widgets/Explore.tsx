@@ -1,12 +1,13 @@
 import { OFFERS_POLLING_INTERVAL } from 'config'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 type OfferType = {
   id: string,
-  sendAmount?: string,
-  sendToken?: string,
-  getAmount?: string,
-  getToken?: string,
+  sendingAmount?: string,
+  sendingCurrency?: string,
+  receivingAmount?: string,
+  receivingCurrency?: string,
   timeLeft?: string
 }
 
@@ -17,11 +18,12 @@ export const ExploreWidget = () => {
     'You get',
     'Time left',
     'Action'
-  ]
-  const [sendToken, setSendToken] = useState<string>('BTC')
-  const [getToken, setGetToken] = useState<string>('EGLD')
-  const [offers, setOffers] = useState<OfferType[]>([])
-  const [offerIds, setOfferIds] = useState<string[]>([])
+  ];
+  const [sendToken, setSendToken] = useState<string>('BTC');
+  const [getToken, setGetToken] = useState<string>('EGLD');
+  const [offers, setOffers] = useState<OfferType[]>([]);
+  const [offerIds, setOfferIds] = useState<string[]>([]);
+  const navigate = useNavigate();
 
   const handleSendTokenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     switch (e.target.value) {
@@ -46,7 +48,16 @@ export const ExploreWidget = () => {
     }
   }
 
+  const handleConnect = async (offerId: string) => {
+    try {
+      await wasmCreateAnswer(offerId);
+    } catch (e) {
+      alert('Error connecting to offer')
+      return
+    }
 
+    navigate('/connect', { state: { offerId } });
+  }
 
   useEffect(() => {
     const onOffersPool = async () => {
@@ -110,10 +121,17 @@ export const ExploreWidget = () => {
             {offers.length > 0 && offers.map((offer) => (
               <tr key={offer.id} className='border-b-2 border-neutral-700'>
                 <td className='py-4 '><span className='text-neutral-400'>s-</span>{offer.id}</td>
-                <td className='py-4'>{offer.getAmount || 'N/A'}</td>
-                <td className='py-4'>{offer.sendAmount || 'N/A'}</td>
+                <td className='py-4'>{offer.receivingAmount || 'N/A'} {offer.receivingCurrency}</td>
+                <td className='py-4'>{offer.sendingAmount || 'N/A'} {offer.sendingCurrency}</td>
                 <td className='py-4'>{offer.timeLeft || 'N/A'}</td>
-                <td className='py-4'><button className='bg-secondary-500 px-2 py-1 rounded-md text-neutral-800 hover:bg-secondary-400 hover:text-neutral-900'>Connect</button></td>
+                <td className='py-4'>
+                  <button
+                    className='bg-secondary-500 px-2 py-1 rounded-md text-neutral-800 hover:bg-secondary-400 hover:text-neutral-900'
+                    onClick={() => handleConnect(offer.id)}
+                  >
+                    Connect
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
