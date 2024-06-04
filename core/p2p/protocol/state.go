@@ -71,9 +71,33 @@ const (
 	SFailed
 )
 
+func (se *SEvents) String() string {
+	switch *se {
+	case SInit:
+		return "Initialized"
+	case SInitDone:
+		return "InitializedCompleted"
+	case SLockedEGLD:
+		return "EGLD Value Locked"
+	case SLockedBTC:
+		return "BTC Value Locked"
+	case SRefund:
+		return "Refunded"
+	case SClaimed:
+		return "Claimed"
+	case SOk:
+		return "Ok"
+	case SFailed:
+		return "Failed"
+	default:
+		return "Unknown"
+	}
+}
+
 type SwapState interface {
 	Start()
 	Close()
 	RunEventHandler()
 	handleSwapEvent(event SEvents)
+	GetEvents() []SEvents
 }

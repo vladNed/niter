@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"math/big"
 	"time"
 
 	"github.com/pion/webrtc/v4"
@@ -76,4 +77,12 @@ func GenerateSeed() ([]byte, error) {
 	}
 
 	return secret, nil
+}
+
+
+func ToBigInt(n string) *big.Int {
+	val := new(big.Int)
+	val.SetString(n, 10)
+
+	return val
 }

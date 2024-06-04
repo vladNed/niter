@@ -1,6 +1,7 @@
 package schemas
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 )
 
@@ -23,12 +24,19 @@ func (s *SwapMessage) Serialize() []byte {
 	copy(data[:2], buf)
 	copy(data[2:], s.Payload)
 
-	return data
+	return []byte(base64.StdEncoding.EncodeToString(data))
 }
 
-func DeserializeSwapMessage(data []byte) *SwapMessage {
-	return &SwapMessage{
-		Type:    SwapMessageType(binary.BigEndian.Uint16(data[:2])),
-		Payload: data[2:],
+func DeserializeSwapMessage(data []byte) (*SwapMessage, error) {
+	decodedData, err := base64.StdEncoding.DecodeString(string(data))
+	if err != nil {
+		return nil, err
 	}
+
+	messageType := binary.BigEndian.Uint16(decodedData[:2])
+
+	return &SwapMessage{
+		Type:    SwapMessageType(messageType),
+		Payload: decodedData[2:],
+	}, nil
 }

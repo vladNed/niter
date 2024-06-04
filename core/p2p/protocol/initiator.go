@@ -8,6 +8,7 @@ import (
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
+	"github.com/indexone/niter/core/mvx"
 	"github.com/indexone/niter/core/utils"
 )
 
@@ -20,12 +21,14 @@ type InitiatorState struct {
 	cancel          context.CancelFunc
 	eventChannel    chan SEvents
 	sendPeerChannel chan schemas.SwapMessage
+	mvxAddress      string
 
 	// Offer Details
 	receivingAmount   string
 	receivingCurrency string
 	sendingAmount     string
 	sendingCurrency   string
+	isCreator         bool
 
 	swapHeight uint64
 
@@ -36,13 +39,36 @@ type InitiatorState struct {
 	peerProof   []byte
 }
 
+func NewInitiatorState(
+	offerDetails *schemas.OfferDetails,
+	sendPeerChannel chan schemas.SwapMessage,
+	mvxAddress string,
+	isCreator bool,
+) *InitiatorState {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &InitiatorState{
+		ctx:               ctx,
+		cancel:            cancel,
+		eventChannel:      make(chan SEvents),
+		sendPeerChannel:   sendPeerChannel,
+		receivingAmount:   offerDetails.ReceivingAmount,
+		receivingCurrency: offerDetails.ReceivingCurrency,
+		sendingAmount:     offerDetails.SendingAmount,
+		sendingCurrency:   offerDetails.SendingCurrency,
+		swapHeight:        0,
+		events:            []SEvents{},
+		mvxAddress:        mvxAddress,
+	}
+}
+
 func (i *InitiatorState) RunEventHandler() {
 	for {
 		select {
 		case <-i.ctx.Done():
+			logger.Debug("InitiatorState: Context cancelled")
 			return
 		case event := <-i.eventChannel:
-			i.handleSwapEvent(event)
+			go i.handleSwapEvent(event)
 		}
 	}
 }
@@ -56,7 +82,11 @@ func (i *InitiatorState) handleSwapEvent(event SEvents) {
 			// TODO: Handle error in events
 		}
 	case SInitDone:
-		logger.Debug("InitiatorState: SInitDone event received")
+		err := i.handleSInitDone()
+		if err != nil {
+			logger.Error("Error handling SInitDone event: ", err.Error())
+			// TODO: Handle error in events
+		}
 	default:
 		logger.Debug("InitiatorState: Unknown event")
 	}
@@ -72,28 +102,44 @@ func (i *InitiatorState) Start() {
 	i.eventChannel <- SInit
 }
 
-func NewInitiatorState(offerDetails *schemas.OfferDetails, sendPeerChannel chan schemas.SwapMessage) *InitiatorState {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &InitiatorState{
-		ctx:               ctx,
-		cancel:            cancel,
-		eventChannel:      make(chan SEvents),
-		sendPeerChannel:   sendPeerChannel,
-		receivingAmount:   offerDetails.ReceivingAmount,
-		receivingCurrency: offerDetails.ReceivingCurrency,
-		sendingAmount:     offerDetails.SendingAmount,
-		sendingCurrency:   offerDetails.SendingCurrency,
-		swapHeight:        0,
-		events:            []SEvents{},
+func (i *InitiatorState) GetEvents() []SEvents {
+	return i.events
+}
+
+func (i *InitiatorState) checkEnoughBalance() (error) {
+	mvxBalance, err := mvx.GetAddressBalance(i.mvxAddress)
+	if err != nil {
+		logger.Error("Error getting balance: ", err.Error())
+		return err
 	}
+	if i.isCreator && i.sendingCurrency == EGLD.String() {
+		sendingAmount := utils.ToBigInt(i.sendingAmount)
+		if mvxBalance.Cmp(sendingAmount) == -1 {
+			logger.Error("Insufficient balance")
+			return errors.New("insufficient balance")
+		}
+		return nil
+	}
+
+	if !i.isCreator && i.receivingCurrency == EGLD.String() {
+		receivingAmount := utils.ToBigInt(i.receivingAmount)
+		if mvxBalance.Cmp(receivingAmount) == -1 {
+			logger.Error("Insufficient balance")
+			return errors.New("insufficient balance")
+		}
+		return nil
+	}
+
+	return nil
 }
 
 func (i *InitiatorState) handleSInit() error {
 	logger.Debug("SInit event handling started")
-
-	// TODO: Check the balance of the initiator is enough to lock the funds
-	// TODO: Give a go to the peer
-
+	err := i.checkEnoughBalance()
+	if err != nil {
+		logger.Error("Error checking balance")
+		return err
+	}
 	secret, err := utils.GenerateSeed()
 	if err != nil {
 		logger.Error("Error generating seed")
@@ -101,13 +147,12 @@ func (i *InitiatorState) handleSInit() error {
 	}
 	proof := utils.Hash(secret)
 	proofData, err := hex.DecodeString(proof)
-	i.secret = secret
-	i.secretProof = proofData
-
 	if err != nil {
 		logger.Error("Error decoding proof")
 		return err
 	}
+	i.secret = secret
+	i.secretProof = proofData
 	i.sendPeerChannel <- schemas.SwapMessage{
 		Type:    schemas.Secret,
 		Payload: proofData,
@@ -118,7 +163,13 @@ func (i *InitiatorState) handleSInit() error {
 		return errors.New("invalid message type received")
 	}
 	i.peerProof = peerMessage.Payload
-	i.events = append(i.events, SInitDone)
+	i.events = append(i.events, SInit)
 	i.eventChannel <- SInitDone
+	return nil
+}
+
+func (i *InitiatorState) handleSInitDone() error {
+	logger.Debug("SInitDone event handling started")
+
 	return nil
 }

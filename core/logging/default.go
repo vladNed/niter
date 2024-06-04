@@ -15,6 +15,10 @@ const (
 	ERROR
 )
 
+var (
+	DefaultLogger = NewLogger(INFO)
+)
+
 func LevelToString(level LogLevel) string {
 	switch level {
 	case DEBUG:

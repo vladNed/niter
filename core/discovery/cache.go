@@ -1,26 +1,22 @@
 package discovery
 
 import (
-	"reflect"
-
 	"github.com/indexone/niter/core/discovery/schemas"
+	"github.com/indexone/niter/core/p2p/protocol"
 )
 
 var Cache = NewOffersCache()
 
-type CacheData = map[string]interface{}
-
 type OffersCache struct {
-	Offers map[string]CacheData
+	Offers map[string]schemas.OfferMessage
 }
 
 func NewOffersCache() *OffersCache {
-	return &OffersCache{Offers: make(map[string]CacheData)}
+	return &OffersCache{Offers: make(map[string]schemas.OfferMessage)}
 }
 
 func (oc *OffersCache) AddOffer(offer schemas.OfferMessage) {
-	data := oc.structToMap(offer)
-	oc.Offers[offer.OfferID] = data
+	oc.Offers[offer.OfferID] = offer
 }
 
 func (oc *OffersCache) AllOffers() []interface{} {
@@ -28,6 +24,16 @@ func (oc *OffersCache) AllOffers() []interface{} {
 	for offerId := range oc.Offers {
 		data := map[string]interface{}{
 			"id": offerId,
+			"sendingAmount": protocol.ConvertToFloat(
+				oc.Offers[offerId].OfferDetails.SendingAmount,
+				oc.Offers[offerId].OfferDetails.SendingCurrency,
+			),
+			"sendingCurrency": oc.Offers[offerId].OfferDetails.SendingCurrency,
+			"receivingAmount": protocol.ConvertToFloat(
+				oc.Offers[offerId].OfferDetails.ReceivingAmount,
+				oc.Offers[offerId].OfferDetails.ReceivingCurrency,
+			),
+			"receivingCurrency": oc.Offers[offerId].OfferDetails.ReceivingCurrency,
 		}
 		offers = append(offers, data)
 	}
@@ -35,30 +41,11 @@ func (oc *OffersCache) AllOffers() []interface{} {
 	return offers
 }
 
-func (oc *OffersCache) GetOffer(offerID string) (CacheData, bool) {
+func (oc *OffersCache) GetOffer(offerID string) (schemas.OfferMessage, bool) {
 	offer, ok := oc.Offers[offerID]
 	return offer, ok
 }
 
 func (oc *OffersCache) RemoveOffer(offerID string) {
 	delete(oc.Offers, offerID)
-}
-
-func (oc *OffersCache) structToMap(data interface{}) CacheData {
-	result := make(map[string]interface{})
-
-	// Using reflection to get struct fields and values
-	val := reflect.ValueOf(data)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-	typ := val.Type()
-
-	for i := 0; i < val.NumField(); i++ {
-		fieldName := typ.Field(i).Name
-		fieldValue := val.Field(i).Interface()
-		result[fieldName] = fieldValue
-	}
-
-	return result
 }

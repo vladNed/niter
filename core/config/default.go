@@ -12,6 +12,7 @@ type DefaultConfig struct {
 	LogLevel            logging.LogLevel `json:"logLevel"`
 	SignallingServerURL string           `json:"signallingServerUrl"`
 	Network             string           `json:"network"`
+	MvxGatewatURL       string           `json:"mvxGatewayUrl"`
 }
 
 func (c *DefaultConfig) GetChainParams() *chaincfg.Params {
@@ -31,6 +32,7 @@ func NewDefaultConfig() *DefaultConfig {
 		LogLevel:            logging.DEBUG,
 		SignallingServerURL: "",
 		Network:             "mainnet",
+		MvxGatewatURL:       "https://testnet-gateway.multiversx.com",
 	}
 }
 

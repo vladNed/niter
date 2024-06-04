@@ -12,6 +12,7 @@ import (
 	"github.com/indexone/niter/core/discovery"
 	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
+	"github.com/indexone/niter/core/mvx"
 	"github.com/indexone/niter/core/p2p"
 	"github.com/indexone/niter/core/p2p/protocol"
 	txs "github.com/indexone/niter/core/transactions"
@@ -26,6 +27,7 @@ var (
 	eventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
 	msgChannel    chan schemas.Message     = make(chan schemas.Message)
 	btcWallet     *bitcoin.Wallet
+	mvxWallet     *mvx.Wallet
 
 	// Broadcast transaction
 	txPool        *txs.TxPool = txs.NewTxPool()
@@ -71,7 +73,7 @@ func startWSClient() interface{} {
 
 // Start webRTC connection
 func startPeerClient() interface{} {
-	newPeer, err := p2p.NewPeer(eventsChannel, msgChannel)
+	newPeer, err := p2p.NewPeer(eventsChannel, msgChannel, btcWallet, mvxWallet)
 	if err != nil {
 		return js.Global().Get("Error").New("Error creating peer: " + err.Error())
 	}
@@ -164,6 +166,9 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 				return
 			}
 
+			offerDetails.SendingAmount = protocol.NormalizeAmount(offerDetails.SendingAmount, offerDetails.SendingCurrency)
+			offerDetails.ReceivingAmount = protocol.NormalizeAmount(offerDetails.ReceivingAmount, offerDetails.ReceivingCurrency)
+
 			err := peer.StartInitiator()
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error starting initiator: " + err.Error()))
@@ -249,8 +254,7 @@ func createAnswer(this js.Value, args []js.Value) interface{} {
 				resolve.Invoke(js.Undefined())
 				return
 			}
-			offerSDP := offerData["OfferSDP"].(string)
-			err = peer.SetOffer(offerSDP)
+			err = peer.SetOffer(offerData.OfferSDP)
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New("Error setting offer: " + err.Error()))
 				resolve.Invoke(js.Undefined())
@@ -348,32 +352,6 @@ func wasmSendData(this js.Value, args []js.Value) interface{} {
 	return js.Undefined()
 }
 
-func pollExchangeData(this js.Value, args []js.Value) interface{} {
-	if err := isPeerInitialized(); err != nil {
-		return err
-	}
-
-	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
-		resolve := inputs[0]
-		go func() {
-			data := peer.ExchangeData
-			payload := make([]interface{}, 0)
-			for _, d := range data {
-				payload = append(payload, map[string]interface{}{
-					"side":      d.Side,
-					"data":      d.Data,
-					"timestamp": d.Timestamp,
-				})
-			}
-			resolve.Invoke(js.ValueOf(payload))
-		}()
-
-		return nil
-	})
-
-	return js.Global().Get("Promise").New(handler)
-}
-
 // Wallet methods
 func initWallet(this js.Value, args []js.Value) interface{} {
 	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
@@ -381,7 +359,31 @@ func initWallet(this js.Value, args []js.Value) interface{} {
 		reject := inputs[1]
 
 		go func() {
-			if len(args) == 1 {
+			switch len(args) {
+			case 0:
+				reject.Invoke(js.Global().Get("Error").New("No arguments provided"))
+				resolve.Invoke(js.Undefined())
+			case 1:
+				logger.Debug("Only MVX Address given, generating BTC wallet")
+				chainParams := config.Config.GetChainParams()
+				wallet, err := bitcoin.GenerateWallet(chainParams)
+				if err != nil {
+					reject.Invoke(js.Global().Get("Error").New("Could not generate BTC wallet"))
+					resolve.Invoke(js.Undefined())
+					return
+				}
+
+				btcWallet = wallet
+				mvxWallet = &mvx.Wallet{Address: args[0].String()}
+				wif, err := btcWallet.WIF()
+				if err != nil {
+					reject.Invoke(js.Global().Get("Error").New("Could not generate WIF"))
+					resolve.Invoke(js.Undefined())
+					return
+				}
+				resolve.Invoke(js.ValueOf(wif))
+			case 2:
+				logger.Debug("WIF and MVX Address given, loading BTC wallet")
 				wif := args[0].String()
 				chainParams := config.Config.GetChainParams()
 				wallet, err := bitcoin.LoadWallet(wif, chainParams)
@@ -391,26 +393,12 @@ func initWallet(this js.Value, args []js.Value) interface{} {
 					return
 				}
 				btcWallet = wallet
+				mvxWallet = &mvx.Wallet{Address: args[1].String()}
 				resolve.Invoke(js.ValueOf(wif))
-				return
-			}
-
-			chainParams := config.Config.GetChainParams()
-			wallet, err := bitcoin.GenerateWallet(chainParams)
-			if err != nil {
-				reject.Invoke(js.Global().Get("Error").New("Could not generate BTC wallet"))
+			default:
+				reject.Invoke(js.Global().Get("Error").New("Invalid number of arguments"))
 				resolve.Invoke(js.Undefined())
-				return
 			}
-
-			btcWallet = wallet
-			wif, err := btcWallet.WIF()
-			if err != nil {
-				reject.Invoke(js.Global().Get("Error").New("Could not generate WIF"))
-				resolve.Invoke(js.Undefined())
-				return
-			}
-			resolve.Invoke(js.ValueOf(wif))
 		}()
 
 		return nil
@@ -467,6 +455,23 @@ func markPendingBroadcast(this js.Value, args []js.Value) interface{} {
 	return js.ValueOf(true)
 }
 
+func getSwapEvents(this js.Value, args []js.Value) interface{} {
+	if err := isPeerInitialized(); err != nil {
+		return err
+	}
+
+	if peer.State != protocol.PeerCommunicating || peer.SwapState == nil {
+		return js.ValueOf(make([]interface{}, 0))
+	}
+
+	events := peer.SwapState.GetEvents()
+	var eventsPayload []interface{}
+	for _, event := range events {
+		eventsPayload = append(eventsPayload, event.String())
+	}
+	return js.ValueOf(eventsPayload)
+}
+
 func main() {
 	go txs.RunTxPoolHandler(txPool, txPoolChannel)
 	jsGlobal := js.Global()
@@ -481,7 +486,6 @@ func main() {
 	jsGlobal.Set("wasmPollOffers", js.FuncOf(pollOffers))
 	jsGlobal.Set("wasmGetPeerState", js.FuncOf(getPeerState))
 	jsGlobal.Set("wasmSendData", js.FuncOf(wasmSendData))
-	jsGlobal.Set("wasmPollExchangeData", js.FuncOf(pollExchangeData))
 
 	// Wallet
 	jsGlobal.Set("wasmInitWallet", js.FuncOf(initWallet))
@@ -490,6 +494,9 @@ func main() {
 	// Events
 	jsGlobal.Set("wasmGetPendingBroadcast", js.FuncOf(getPendingBroadcast))
 	jsGlobal.Set("wasmMarkPendingBroadcast", js.FuncOf(markPendingBroadcast))
+
+	// Swap
+	jsGlobal.Set("wasmGetSwapEvents", js.FuncOf(getSwapEvents))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})
