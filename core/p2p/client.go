@@ -11,7 +11,6 @@ import (
 	"github.com/indexone/niter/core/bitcoin"
 	"github.com/indexone/niter/core/config"
 	"github.com/indexone/niter/core/crypto"
-	"github.com/indexone/niter/core/discovery"
 	msgSchemas "github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/logging"
 	"github.com/indexone/niter/core/mvx"
@@ -237,36 +236,36 @@ func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
 		return errors.New("invalid peer id")
 	}
 	p.RemotePeer = &RemotePeerInfo{Id: peerId}
-	offer, ok := discovery.Cache.GetOffer(p.ActiveOfferId)
-	if !ok {
-		logger.Debug("Offer not found")
-		return errors.New("offer not found")
-	}
-	go p.swapMessageHandler()
-	if offer.OfferDetails.SwapCreator == p.Id() {
-		if offer.OfferDetails.SendingCurrency == protocol.EGLD.String() {
-			p.SwapState = protocol.NewInitiatorState(
-				&offer.OfferDetails,
-				p.swapChannel,
-				p.mvxWallet.Address,
-				true,
-			)
-		} else {
-			p.SwapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
-		}
-	} else {
-		if offer.OfferDetails.ReceivingCurrency == protocol.EGLD.String() {
-			p.SwapState = protocol.NewInitiatorState(
-				&offer.OfferDetails,
-				p.swapChannel,
-				p.mvxWallet.Address,
-				false,
-			)
-		} else {
-			p.SwapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
-		}
-	}
-	p.SwapState.Start()
+	// offer, ok := discovery.Cache.GetOffer(p.ActiveOfferId)
+	// if !ok {
+	// 	logger.Debug("Offer not found")
+	// 	return errors.New("offer not found")
+	// }
+	// go p.swapMessageHandler()
+	// if offer.OfferDetails.SwapCreator == p.Id() {
+	// 	if offer.OfferDetails.SendingCurrency == protocol.EGLD.String() {
+	// 		p.SwapState = protocol.NewInitiatorState(
+	// 			&offer.OfferDetails,
+	// 			p.swapChannel,
+	// 			p.mvxWallet.Address,
+	// 			true,
+	// 		)
+	// 	} else {
+	// 		p.SwapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
+	// 	}
+	// } else {
+	// 	if offer.OfferDetails.ReceivingCurrency == protocol.EGLD.String() {
+	// 		p.SwapState = protocol.NewInitiatorState(
+	// 			&offer.OfferDetails,
+	// 			p.swapChannel,
+	// 			p.mvxWallet.Address,
+	// 			false,
+	// 		)
+	// 	} else {
+	// 		p.SwapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
+	// 	}
+	// }
+	// p.SwapState.Start()
 	p.State = protocol.PeerCommunicating
 	return nil
 }

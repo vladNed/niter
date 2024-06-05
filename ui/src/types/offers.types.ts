@@ -19,8 +19,8 @@ interface OfferDetails {
   sendingCurrency: string;
   receivingAmount: string;
   receivingCurrency: string;
-  createdAt: string;
-  expiresAt: string;
+  createdAt?: string;
+  expiresAt?: string;
 }
 
 export type { OfferDetails }

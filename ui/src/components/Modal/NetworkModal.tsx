@@ -1,4 +1,4 @@
-import { CloseIcon } from "components/Icons"
+import { CloseIcon } from 'components/Icons'
 
 export const NetworkField = ({ label, value }: { label: string, value: string}) => {
   return (

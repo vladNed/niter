@@ -1,7 +1,7 @@
-import { CreateOfferButton } from "components/Button"
-import { BTCLogo, MultiversxLogo } from "components/Icons"
-import { useState } from "react"
-import { OfferDetails, SideToken, SwapFieldProps } from "types"
+import { CreateOfferButton } from 'components/Button'
+import { BTCLogo, MultiversxLogo } from 'components/Icons'
+import { useState } from 'react'
+import { OfferDetails, SideToken, SwapFieldProps } from 'types'
 
 const SwapField = (props: SwapFieldProps) => {
   return (
@@ -19,7 +19,7 @@ const SwapField = (props: SwapFieldProps) => {
           onChange={props.onChange}
           value={props.value}
           data-side={props.dataSide}
-          type="text"
+          type='text'
           placeholder='0'
           className='col-span-9 w-full text-right outline-none text-4xl text-center bg-inherit'
         />
@@ -96,7 +96,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
           side='Swap'
           value={sendingAmount}
           onChange={handleSwapAmountChange}
-          dataSide="sending"
+          dataSide='sending'
         />
         <div
           className={`
@@ -106,8 +106,8 @@ export const CreateOffer = (props: CreateOfferProps) => {
             `}
           onClick={handleSideSwap}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-5 w-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />
+          <svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' strokeWidth='1.5' stroke='currentColor' className='h-5 w-5'>
+            <path strokeLinecap='round' strokeLinejoin='round' d='M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3' />
           </svg>
         </div>
         <SwapField
@@ -117,7 +117,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
           side='For'
           value={receivingAmount}
           onChange={handleSwapAmountChange}
-          dataSide="receiving"
+          dataSide='receiving'
         />
       </div>
       <div className='mt-1'>

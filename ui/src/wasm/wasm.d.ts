@@ -8,6 +8,11 @@ interface PeerInfo {
 
 interface OfferData {
   id: string;
+  receivingAmount: string;
+  receivingCurrency: string;
+  sendingAmount: string;
+  sendingCurrency: string;
+  swapCreator: string;
 }
 
 

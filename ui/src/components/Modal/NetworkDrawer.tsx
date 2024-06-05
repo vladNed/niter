@@ -1,7 +1,7 @@
-import { useGetAccountInfo } from "@multiversx/sdk-dapp/hooks/account/useGetAccountInfo";
-import { ChevronIcon } from "components/Icons";
-import { useEffect, useState } from "react";
-import { DrawerProps } from "types";
+import { useGetAccountInfo } from '@multiversx/sdk-dapp/hooks/account/useGetAccountInfo';
+import { ChevronIcon } from 'components/Icons';
+import { useEffect, useState } from 'react';
+import { DrawerProps } from 'types';
 
 export const DrawerField = ({ label, value }: { label: string, value: string}) => {
   return (

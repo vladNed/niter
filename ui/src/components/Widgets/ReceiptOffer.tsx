@@ -3,7 +3,8 @@ import { OfferDetails } from 'types'
 
 type ReceiptOfferProps = {
   offerData: OfferDetails | null
-  handleConfirmation: (offerId: string) => void
+  swapSide?: string
+  handleConfirmation: () => void
 }
 
 export const ReceiptOffer = (props: ReceiptOfferProps) => {
@@ -14,17 +15,15 @@ export const ReceiptOffer = (props: ReceiptOfferProps) => {
     return sendingAmount * 0.005
   }
 
-  const handleConfirmSwap = async () => {
-    const offerId = await wasmCreateOffer(JSON.stringify(props.offerData))
-    props.handleConfirmation(offerId)
-  }
-
   return (
     <div className='text-xl flex flex-col gap-4'>
       <div className='text-2xl font-medium py-2 border-b-[1px] border-zinc-200'>Swap Details</div>
       <div className='flex flex-col'>
         <span className='text-zinc-500'>You send:</span>
-        <span>{props.offerData?.sendingAmount} {props.offerData?.sendingCurrency}</span>
+        <div className='flex flex-row gap-2'>
+          <span>{props.swapSide === 'Initiator' ? props.offerData?.sendingAmount : props.offerData?.receivingAmount}</span>
+          <span>{props.swapSide === 'Initiator' ? props.offerData?.sendingCurrency : props.offerData?.receivingCurrency}</span>
+        </div>
       </div>
       <div className='flex flex-col'>
         <span className='text-zinc-500'>Exchange Rate:</span>
@@ -42,9 +41,12 @@ export const ReceiptOffer = (props: ReceiptOfferProps) => {
       </div>
       <div className='flex flex-col'>
         <span className='text-2xl font-medium'>You receive:</span>
-        <span>{props.offerData?.receivingAmount} {props.offerData?.receivingCurrency}</span>
+        <div className='flex flex-row gap-2'>
+          <span>{props.swapSide === 'Initiator' ? props.offerData?.receivingAmount : props.offerData?.sendingAmount}</span>
+          <span>{props.swapSide === 'Initiator' ? props.offerData?.receivingCurrency : props.offerData?.sendingCurrency}</span>
+        </div>
       </div>
-      <CreateOfferButton text='Confirm Swap' onClick={handleConfirmSwap} />
+      <CreateOfferButton text='Confirm Swap' onClick={props.handleConfirmation} />
     </div>
   )
 }

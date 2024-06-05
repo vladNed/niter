@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState } from 'react'
 
 const Step = ({
   step,
@@ -33,7 +33,7 @@ const Step = ({
 export const SwapStepper = ({ steps, currentStep }: {steps: string[], currentStep: number }) => {
   return (
     <div className='w-full my-2'>
-      <ol className="flex items-center w-full">
+      <ol className='flex items-center w-full'>
         {steps.map((step, index) => (
           <Step key={index} step={step} stepIndex={index} currentStep={currentStep} />
         ))}

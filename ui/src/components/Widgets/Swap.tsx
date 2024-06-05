@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FindOffer, CreateOffer, ReceiptOffer } from 'components/Widgets';
 import { OfferDetails } from 'types';
-import { SwapModal } from 'components/Swap';
+import { InitiatorStepOne, OfferConnecting, OfferCreatedStep, ParticipantStepOne, SwapModal } from 'components/Swap';
 
 type SwapWidgetType = 'Create' | 'Find' | 'Receipt'
+type SwapSide = 'Initiator' | 'Participant'
 
 export const SwapWidget = () => {
   const [currentOffer, setCurrentOffer] = useState<OfferDetails | null>(null);
@@ -11,10 +12,28 @@ export const SwapWidget = () => {
   const [swapMode, setSwapMode] = useState<SwapWidgetType>('Create');
   const swapModeText = swapMode === 'Find' ? 'Find an existing offer' : 'Create a new offer';
   const [swapActive, setSwapActive] = useState<boolean>(false);
+  const [swapSide, setSwapSide] = useState<SwapSide | undefined>(undefined);
+  const [currentSwapStep, setCurrentSwapStep] = useState<number>(0);
 
-  const handleSwapActive = (offerId: string) => {
-    setSwapActive(!swapActive)
-    setCurrentOfferId(offerId)
+  const InitiatorStates = [
+    <OfferCreatedStep offerId={currentOfferId} />,
+    <InitiatorStepOne />
+  ]
+
+  const ReceiverStates = [
+    <OfferConnecting offerId={currentOfferId}/>,
+    <ParticipantStepOne />
+  ]
+
+  const getCurrentStep = () => {
+    switch(swapSide) {
+      case 'Initiator':
+        return InitiatorStates[currentSwapStep]
+      case 'Participant':
+        return ReceiverStates[currentSwapStep]
+      default:
+        return undefined
+    }
   }
 
   const handleSwapClose = () => {
@@ -28,10 +47,45 @@ export const SwapWidget = () => {
     setSwapMode(mode)
   }
 
-  const handleReceiptOffer = (offerData: OfferDetails) => {
+  const handleReceiptOffer = (offerData: OfferDetails, offerId?: string) => {
+    if(swapMode === 'Create') {
+      setSwapSide('Initiator')
+    } else {
+      setSwapSide('Participant')
+    }
     setSwapMode('Receipt')
     setCurrentOffer(offerData)
+
+    if(offerId) {
+      setCurrentOfferId(offerId)
+    }
+
   }
+
+  const handleCreateConfirmation = async () => {
+    const offerId = await wasmCreateOffer(JSON.stringify(currentOffer))
+    setCurrentOfferId(offerId)
+    setSwapActive(true)
+  }
+
+  const handleSearchConfirmation = async () => {
+    setSwapActive(true)
+  }
+
+  useEffect(() => {
+    const fetchPeerState = setInterval(() => {
+      const peerState = wasmGetPeerState();
+      switch (peerState.state) {
+        case 'PeerCommunicating':
+          setCurrentSwapStep(1)
+          break;
+        default:
+          break;
+      }
+    }, 1000);
+
+    return () => clearInterval(fetchPeerState)
+  }, [])
 
   return (
     <div className='h-full text-black font-outfit rounded-md p-4 w-full min-w-[500px] max-w-[600px] rounded-xl bg-white'>
@@ -56,10 +110,21 @@ export const SwapWidget = () => {
         </div>
         <span className='text-left text-2xl'>{swapModeText}</span>
       </div>
-      {swapMode === 'Receipt' && <ReceiptOffer offerData={currentOffer} handleConfirmation={handleSwapActive}/>}
+      {swapMode === 'Receipt' &&
+      <ReceiptOffer
+        offerData={currentOffer}
+        handleConfirmation={swapSide === 'Initiator' ? handleCreateConfirmation : handleSearchConfirmation}
+        swapSide={swapSide}
+      />}
       {swapMode === 'Create' && <CreateOffer handleReceiptShow={handleReceiptOffer} />}
-      {swapMode === 'Find' && <FindOffer />}
-      {swapActive && <SwapModal onClose={handleSwapClose} offerId={currentOfferId}/>}
+      {swapMode === 'Find' && <FindOffer handleReceiptShow={handleReceiptOffer}/>}
+      {swapActive &&
+      <SwapModal
+        onClose={handleSwapClose}
+        offerId={currentOfferId}
+        bodyElement={getCurrentStep()}
+        />
+      }
     </div>
   )
 }

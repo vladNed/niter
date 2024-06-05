@@ -34,6 +34,7 @@ func (oc *OffersCache) AllOffers() []interface{} {
 				oc.Offers[offerId].OfferDetails.ReceivingCurrency,
 			),
 			"receivingCurrency": oc.Offers[offerId].OfferDetails.ReceivingCurrency,
+			"swapCreator": oc.Offers[offerId].OfferDetails.SwapCreator,
 		}
 		offers = append(offers, data)
 	}
