@@ -48,7 +48,7 @@ export const Unlock = () => {
     <AuthRedirectWrapper requireAuth={false}>
       <div className='flex justify-center items-center'>
         <div
-          className='flex flex-col p-6 items-center justify-center gap-4 rounded-xl bg-neutral-800 text-neutral-300'
+          className='flex flex-col p-6 items-center justify-center gap-4 rounded-xl bg-white text-black'
           data-testid='unlockPage'
         >
           <div className='flex flex-col items-center gap-1'>

@@ -1,5 +1,5 @@
 import { RouteNamesEnum } from 'localConstants';
-import { Swap, Explore, Home, Connect } from 'pages';
+import { Swap, Home } from 'pages';
 import { RouteType } from 'types';
 
 interface RouteWithTitleType extends RouteType {
@@ -17,14 +17,4 @@ export const routes: RouteWithTitleType[] = [
     title: 'Swap',
     component: Swap
   },
-  {
-    path: RouteNamesEnum.explore,
-    title: 'Explore',
-    component: Explore
-  },
-  {
-    path: RouteNamesEnum.connect,
-    title: 'Connect',
-    component: Connect
-  }
 ];

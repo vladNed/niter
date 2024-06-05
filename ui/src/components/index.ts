@@ -9,3 +9,4 @@ export * from './Label';
 export * from './Widgets';
 export * from './Icons';
 export * from './Modal';
+export * from './Swap';

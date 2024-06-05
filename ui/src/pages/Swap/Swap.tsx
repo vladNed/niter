@@ -9,7 +9,7 @@ export const Swap = () => {
   return (
     <AuthRedirectWrapper>
       <div className='h-full container flex flex-col gap-8 place-items-center'>
-        <SwapWidget isPlaceholder={false} />
+        <SwapWidget />
       </div>
     </AuthRedirectWrapper>
   );

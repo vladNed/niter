@@ -55,28 +55,25 @@ export const Header = () => {
 
   const navItems = [
     { title: 'Swap', path: RouteNamesEnum.swap },
-    { title: 'Explore', path: RouteNamesEnum.explore },
-    { title: 'Connect', path: RouteNamesEnum.connect}
   ]
 
   return (
     <header className='flex flex-row align-center gap-6 pl-6 pr-6 pt-6 pb-6 w-full m-auto justify-between'>
       <Logo />
-      <NavigationItems items={navItems} />
       <nav className='float-end text-white h-full w-full text-sm sm:relative sm:left-auto sm:top-auto sm:flex sm:w-auto sm:flex-row sm:justify-end sm:bg-transparent p-1'>
         <div className='flex float-end container mx-auto items-center gap-6'>
-          <div className='flex gap-1 items-center text-zinc-400'>
+          <div className='flex gap-1 items-center text-black'>
             <div className='w-2 h-2 rounded-full bg-green-600' />
             <p>{environment}</p>
           </div>
-          <button disabled={!isLoggedIn} onClick={handleDrawer} className='bg-primary-600/40 px-3 py-2 rounded-lg text-primary-300 hover:no-underline hover:bg-primary-600/100 transition-colors hover:text-primary-100'>
+          <button disabled={!isLoggedIn} onClick={handleDrawer} className='px-3 py-2 rounded-lg bg-primary-500 hover:no-underline hover:bg-primary-600/100 transition-colors hover:text-primary-100'>
             Network
           </button>
 
           {isLoggedIn ? (
             <Button
               onClick={handleLogout}
-              className='text-neutral-100 inline-block rounded-lg px-3 py-2 text-center hover:no-underline my-0 hover:bg-neutral-600/100 mx-0 bg-neutral-800 '
+              className='text-black inline-block rounded-lg px-3 py-2 text-center hover:no-underline my-0 hover:bg-slate-300 mx-0 bg-slate-200 '
             >
               Close
             </Button>

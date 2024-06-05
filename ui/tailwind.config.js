@@ -12,9 +12,13 @@ module.exports = {
         kanit: ['"Kanit"', ...defaultTheme.fontFamily.sans],
       },
       colors: {
-        primary: colors.emerald,
+        primary: colors.blue,
         secondary: colors.sky,
       },
+    },
+    screens: {
+      xs: '300px',
+      ...defaultTheme.screens,
     },
     backgroundImage: {
       // eslint-disable-next-line quotes
