@@ -1,7 +1,7 @@
 
 export enum CoinCurrency {
-  BTC = 'Bitcoin',
-  EGLD = 'Multiversx'
+  BTC = 'BTC',
+  EGLD = 'EGLD'
 }
 
 export enum OfferSide {
@@ -18,4 +18,9 @@ export enum SwapWidgetType {
   CREATE = 'Create',
   FIND = 'Find',
   RECEIPT = 'Receipt'
+}
+
+export enum TransactionRequestTypes {
+  CreateSwap = 'CreateSwap',
+  SetReadySwap = 'SetReadySwap',
 }

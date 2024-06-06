@@ -1,15 +1,13 @@
 import { CreateOfferButton } from 'components/Button'
-import { SwapSide } from 'localConstants'
 import { type OfferDetails } from 'types'
 
 type ReceiptOfferProps = {
-  offerData: OfferDetails | null
-  swapSide?: string
+  offerData?: OfferDetails
+  isSwapCreator: boolean
   handleConfirmation: () => void
 }
 
 export const ReceiptOffer = (props: ReceiptOfferProps) => {
-
   const calculateProtocolFee = () => {
     if (!props.offerData) return 0
     const sendingAmount = parseFloat(props.offerData.sendingAmount)
@@ -17,19 +15,19 @@ export const ReceiptOffer = (props: ReceiptOfferProps) => {
   }
 
   const getSendingAmount = () => {
-    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.receivingAmount : props.offerData?.sendingAmount
+    return props.isSwapCreator ? props.offerData?.sendingAmount : props.offerData?.receivingAmount
   }
 
   const getSendingCurrency = () => {
-    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.receivingCurrency : props.offerData?.sendingCurrency
+    return props.isSwapCreator ? props.offerData?.sendingCurrency : props.offerData?.receivingCurrency
   }
 
   const getReceivingAmount = () => {
-    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.sendingAmount : props.offerData?.receivingAmount
+    return props.isSwapCreator ? props.offerData?.receivingAmount : props.offerData?.sendingAmount
   }
 
   const getReceivingCurrency = () => {
-    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.sendingCurrency : props.offerData?.receivingCurrency
+    return props.isSwapCreator ? props.offerData?.receivingCurrency : props.offerData?.sendingCurrency
   }
 
   return (

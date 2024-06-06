@@ -4,7 +4,7 @@ interface PeerInfo {
   id: string;
   state: string;
   remotePeer: string;
-}
+};
 
 interface OfferData {
   id: string;
@@ -13,14 +13,14 @@ interface OfferData {
   sendingAmount: string;
   sendingCurrency: string;
   swapCreator: string;
-}
+};
 
 
 declare type PeerData = {
   side: string,
   data: string,
   timestamp: string,
-}
+};
 
 
 /**
@@ -72,4 +72,13 @@ declare function wasmSendData(data: string): Promise<void>;
 
 declare function wasmInitWallet(wif?: string, mvxAddress?: string): Promise<string>;
 
+/*
+  * Gets all the events that happened in a swap context
+  */
 declare function wasmGetSwapEvents(): string[];
+
+
+/**
+ * The function that retrieves the data from the swap state to create a transaction.
+ */
+declare function wasmTransactionRequest(transactionType: string): Promise<any>;

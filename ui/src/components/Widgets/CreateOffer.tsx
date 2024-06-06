@@ -105,7 +105,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
       receivingCurrency: receivingToken.ticker,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString()
-    }
+    };
     props.handleReceiptShow(data)
   };
 

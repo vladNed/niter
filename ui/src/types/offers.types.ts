@@ -2,7 +2,7 @@ type CreateOfferProps = {
   handleReceiptShow: (offerData: OfferDetails) => void
 }
 
-interface OfferDetails {
+type OfferDetails = {
   swapCreator: string;
   sendingAmount: string;
   sendingCurrency: string;
@@ -10,6 +10,7 @@ interface OfferDetails {
   receivingCurrency: string;
   createdAt?: string;
   expiresAt?: string;
+  isSwapCreator?: boolean;
 }
 
 export type { OfferDetails, CreateOfferProps }
