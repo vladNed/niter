@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react';
 import { FindOffer, CreateOffer, ReceiptOffer } from 'components/Widgets';
-import { OfferDetails } from 'types';
-import { InitiatorStepOne, OfferConnecting, OfferCreatedStep, ParticipantStepOne, SwapModal } from 'components/Swap';
+import { type OfferDetails } from 'types';
+import {
+  InitiatorStepOne,
+  OfferConnecting,
+  OfferCreatedStep,
+  ParticipantStepOne,
+  SwapModal,
+} from 'components/Swap';
+import { SwapSide, SwapWidgetType } from 'localConstants';
 
-type SwapWidgetType = 'Create' | 'Find' | 'Receipt'
-type SwapSide = 'Initiator' | 'Participant'
 
 export const SwapWidget = () => {
   const [currentOffer, setCurrentOffer] = useState<OfferDetails | null>(null);
   const [currentOfferId, setCurrentOfferId] = useState<string>('');
-  const [swapMode, setSwapMode] = useState<SwapWidgetType>('Create');
-  const swapModeText = swapMode === 'Find' ? 'Find an existing offer' : 'Create a new offer';
+  const [swapWidgetType, setSwapWidgetType] = useState<SwapWidgetType>(SwapWidgetType.CREATE);
   const [swapActive, setSwapActive] = useState<boolean>(false);
   const [swapSide, setSwapSide] = useState<SwapSide | undefined>(undefined);
   const [currentSwapStep, setCurrentSwapStep] = useState<number>(0);
+  const swapModeText = swapWidgetType === SwapWidgetType.FIND ? 'Find an existing offer' : 'Create a new offer';
 
   const InitiatorStates = [
     <OfferCreatedStep offerId={currentOfferId} />,
@@ -27,9 +32,9 @@ export const SwapWidget = () => {
 
   const getCurrentStep = () => {
     switch(swapSide) {
-      case 'Initiator':
+      case SwapSide.INITIATOR:
         return InitiatorStates[currentSwapStep]
-      case 'Participant':
+      case SwapSide.PARTICIPANT:
         return ReceiverStates[currentSwapStep]
       default:
         return undefined
@@ -40,20 +45,20 @@ export const SwapWidget = () => {
     setSwapActive(false)
     setCurrentOfferId('')
     setCurrentOffer(null)
-    setSwapMode('Create')
+    setSwapWidgetType(SwapWidgetType.CREATE)
   }
 
   const handleSwapMode = (mode: SwapWidgetType) => {
-    setSwapMode(mode)
+    setSwapWidgetType(mode)
   }
 
   const handleReceiptOffer = (offerData: OfferDetails, offerId?: string) => {
-    if(swapMode === 'Create') {
-      setSwapSide('Initiator')
+    if(swapWidgetType === 'Create') {
+      setSwapSide(SwapSide.INITIATOR)
     } else {
-      setSwapSide('Participant')
+      setSwapSide(SwapSide.PARTICIPANT)
     }
-    setSwapMode('Receipt')
+    setSwapWidgetType(SwapWidgetType.RECEIPT)
     setCurrentOffer(offerData)
 
     if(offerId) {
@@ -94,37 +99,31 @@ export const SwapWidget = () => {
           <button
             className={
               `w-1/2 px-4 py-2 rounded-2xl hover:bg-white hover:text-blue-600 transition duration-500 ease-in-out`
-              + (swapMode !== 'Find' ? ' bg-white text-blue-600 font-medium' : ' text-neutral-500')
+              + (swapWidgetType !== SwapWidgetType.FIND ? ' bg-white text-blue-600 font-medium' : ' text-neutral-500')
             }
-            onClick={() => handleSwapMode('Create')}
+            onClick={() => handleSwapMode(SwapWidgetType.CREATE)}
           >Create Offer
           </button>
           <button
             className={
               `w-1/2 px-4 py-2 rounded-2xl hover:bg-white hover:text-blue-600 transition duration-500 ease-in-out`
-              + (swapMode === 'Find' ? ' bg-white text-blue-600 font-medium' : ' text-neutral-500')
+              + (swapWidgetType === SwapWidgetType.FIND ? ' bg-white text-blue-600 font-medium' : ' text-neutral-500')
             }
-            onClick={() => handleSwapMode('Find')}
+            onClick={() => handleSwapMode(SwapWidgetType.FIND)}
           >Find Offer
           </button>
         </div>
         <span className='text-left text-2xl'>{swapModeText}</span>
       </div>
-      {swapMode === 'Receipt' &&
+      {swapWidgetType === SwapWidgetType.RECEIPT &&
       <ReceiptOffer
         offerData={currentOffer}
-        handleConfirmation={swapSide === 'Initiator' ? handleCreateConfirmation : handleSearchConfirmation}
+        handleConfirmation={swapSide === SwapSide.INITIATOR ? handleCreateConfirmation : handleSearchConfirmation}
         swapSide={swapSide}
       />}
-      {swapMode === 'Create' && <CreateOffer handleReceiptShow={handleReceiptOffer} />}
-      {swapMode === 'Find' && <FindOffer handleReceiptShow={handleReceiptOffer}/>}
-      {swapActive &&
-      <SwapModal
-        onClose={handleSwapClose}
-        offerId={currentOfferId}
-        bodyElement={getCurrentStep()}
-        />
-      }
+      {swapWidgetType === SwapWidgetType.CREATE && <CreateOffer handleReceiptShow={handleReceiptOffer} />}
+      {swapWidgetType === SwapWidgetType.FIND && <FindOffer handleReceiptShow={handleReceiptOffer}/>}
+      {swapActive && <SwapModal onClose={handleSwapClose} offerId={currentOfferId} bodyElement={getCurrentStep()}/>}
     </div>
   )
 }

@@ -1,16 +1,5 @@
-export enum Coin {
-  EGLD = 'EGLD',
-  MNR = 'MNR'
-}
-
-export enum TradeType {
-  Buy = 'buy',
-  Sell = 'sell'
-}
-
-export type TradeTypeOptions = {
-  label: string;
-  value: string;
+type CreateOfferProps = {
+  handleReceiptShow: (offerData: OfferDetails) => void
 }
 
 interface OfferDetails {
@@ -23,4 +12,4 @@ interface OfferDetails {
   expiresAt?: string;
 }
 
-export type { OfferDetails }
+export type { OfferDetails, CreateOfferProps }

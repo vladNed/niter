@@ -1,7 +1,13 @@
-import { CreateOfferButton } from 'components/Button'
-import { BTCLogo, MultiversxLogo } from 'components/Icons'
-import { useState } from 'react'
-import { OfferDetails, SideToken, SwapFieldProps } from 'types'
+import { useState } from 'react';
+import { CreateOfferButton } from 'components/Button';
+import { BTCLogo, MultiversxLogo } from 'components/Icons';
+import {
+  type CreateOfferProps,
+  type OfferDetails,
+  type SideToken,
+  type SwapFieldProps,
+} from 'types';
+import { CoinCurrency, OfferSide } from 'localConstants';
 
 const SwapField = (props: SwapFieldProps) => {
   return (
@@ -30,13 +36,9 @@ const SwapField = (props: SwapFieldProps) => {
 }
 
 const tokens: SideToken[] = [
-  { ticker: 'BTC', name: 'Bitcoin', icon: <BTCLogo /> },
-  { ticker: 'EGLD', name: 'Multiversx', icon: <MultiversxLogo /> }
+  { ticker: 'BTC', name: CoinCurrency.BTC, icon: <BTCLogo /> },
+  { ticker: 'EGLD', name: CoinCurrency.EGLD, icon: <MultiversxLogo /> }
 ]
-
-type CreateOfferProps = {
-  handleReceiptShow: (offerData: OfferDetails) => void
-}
 
 export const CreateOffer = (props: CreateOfferProps) => {
   const [errMsg, setErrMsg] = useState<string>('')
@@ -55,19 +57,32 @@ export const CreateOffer = (props: CreateOfferProps) => {
   }
 
   const handleSwapAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    const isInteger = /^\d*\.?\d{0,2}$/.test(value)
-    if (!isInteger && value !== '') return
+    var value = e.target.value
     const side = e.target.getAttribute('data-side')
-    if (side === 'sending') {
-      setSendingAmount(value)
-      return
+
+    if (value === '00') {
+      value = '0.0'
     }
-    setReceivingAmount(value)
+
+    const isDecimal = /^\d*\.?\d{0,4}$/.test(value)
+    if (!isDecimal && value !== '') return
+
+    switch (side) {
+      case OfferSide.SENDING:
+        setSendingAmount(value)
+        break
+      case OfferSide.RECEIVING:
+        setReceivingAmount(value)
+        break
+      default:
+        break
+    }
   }
 
   const handleCreateOffer = () => {
-    if (!sendingAmount || !receivingAmount) {
+    const sendingAmountNum = parseFloat(sendingAmount)
+    const receivingAmountNum = parseFloat(receivingAmount)
+    if (isNaN(sendingAmountNum) || isNaN(receivingAmountNum) || sendingAmountNum <= 0 || receivingAmountNum <= 0){
       setErrMsg('Not all amounts are provided')
       return
     }
@@ -96,7 +111,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
           side='Swap'
           value={sendingAmount}
           onChange={handleSwapAmountChange}
-          dataSide='sending'
+          dataSide={OfferSide.SENDING}
         />
         <div
           className={`
@@ -117,7 +132,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
           side='For'
           value={receivingAmount}
           onChange={handleSwapAmountChange}
-          dataSide='receiving'
+          dataSide={OfferSide.RECEIVING}
         />
       </div>
       <div className='mt-1'>

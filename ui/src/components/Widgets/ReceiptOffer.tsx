@@ -1,5 +1,6 @@
 import { CreateOfferButton } from 'components/Button'
-import { OfferDetails } from 'types'
+import { SwapSide } from 'localConstants'
+import { type OfferDetails } from 'types'
 
 type ReceiptOfferProps = {
   offerData: OfferDetails | null
@@ -15,14 +16,30 @@ export const ReceiptOffer = (props: ReceiptOfferProps) => {
     return sendingAmount * 0.005
   }
 
+  const getSendingAmount = () => {
+    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.receivingAmount : props.offerData?.sendingAmount
+  }
+
+  const getSendingCurrency = () => {
+    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.receivingCurrency : props.offerData?.sendingCurrency
+  }
+
+  const getReceivingAmount = () => {
+    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.sendingAmount : props.offerData?.receivingAmount
+  }
+
+  const getReceivingCurrency = () => {
+    return props.swapSide === SwapSide.INITIATOR ? props.offerData?.sendingCurrency : props.offerData?.receivingCurrency
+  }
+
   return (
     <div className='text-xl flex flex-col gap-4'>
       <div className='text-2xl font-medium py-2 border-b-[1px] border-zinc-200'>Swap Details</div>
       <div className='flex flex-col'>
         <span className='text-zinc-500'>You send:</span>
         <div className='flex flex-row gap-2'>
-          <span>{props.swapSide === 'Initiator' ? props.offerData?.sendingAmount : props.offerData?.receivingAmount}</span>
-          <span>{props.swapSide === 'Initiator' ? props.offerData?.sendingCurrency : props.offerData?.receivingCurrency}</span>
+          <span>{getSendingAmount()}</span>
+          <span>{getSendingCurrency()}</span>
         </div>
       </div>
       <div className='flex flex-col'>
@@ -42,8 +59,8 @@ export const ReceiptOffer = (props: ReceiptOfferProps) => {
       <div className='flex flex-col'>
         <span className='text-2xl font-medium'>You receive:</span>
         <div className='flex flex-row gap-2'>
-          <span>{props.swapSide === 'Initiator' ? props.offerData?.receivingAmount : props.offerData?.sendingAmount}</span>
-          <span>{props.swapSide === 'Initiator' ? props.offerData?.receivingCurrency : props.offerData?.sendingCurrency}</span>
+          <span>{getReceivingAmount()}</span>
+          <span>{getReceivingCurrency()}</span>
         </div>
       </div>
       <CreateOfferButton text='Confirm Swap' onClick={props.handleConfirmation} />

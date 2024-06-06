@@ -1,6 +1,6 @@
 import { CreateOfferButton } from 'components/Button'
 import { useState } from 'react'
-import { OfferDetails } from 'types'
+import { type OfferDetails } from 'types'
 
 type FindOfferProps = {
   handleReceiptShow: (offerData: OfferDetails, offerId?: string) => void

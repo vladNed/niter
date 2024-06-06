@@ -3,5 +3,4 @@ export * from './MultiversxLogo';
 export * from './CloseIcon';
 export * from './ChevronIcon';
 export * from './Clipboard';
-export * from './ArrowRight';
 export * from './Check';

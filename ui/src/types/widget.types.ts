@@ -10,7 +10,7 @@ export type WidgetType<T = any> = {
   anchor?: string;
 };
 
-export interface SwapFieldProps {
+interface SwapFieldProps {
   icon: React.ReactElement;
   ticker: string;
   name: string;
@@ -37,4 +37,5 @@ export interface DrawerProps {
 
 export type {
   SearchOfferWidgetProps,
+  SwapFieldProps,
 };
