@@ -21,6 +21,7 @@ type InitiatorState struct {
 	cancel          context.CancelFunc
 	eventChannel    chan SEvents
 	sendPeerChannel chan schemas.SwapMessage
+
 	mvxAddress      string
 
 	// Offer Details
@@ -104,6 +105,26 @@ func (i *InitiatorState) Start() {
 
 func (i *InitiatorState) GetEvents() []SEvents {
 	return i.events
+}
+
+func (i *InitiatorState) GetTransactionDetails(requestType TransactionRequestType) (map[string]interface{}, error) {
+	switch requestType {
+	case CreateSwap:
+		var amount string
+		if i.sendingCurrency == EGLD.String() {
+			amount = i.sendingAmount
+		} else {
+			amount = i.receivingAmount
+		}
+		data := map[string]interface{}{
+			"claimProof": hex.EncodeToString(i.peerProof),
+			"refundProof": hex.EncodeToString(i.secretProof),
+			"amount": amount,
+		}
+		return data, nil
+	default:
+		return nil, errors.New("invalid request type")
+	}
 }
 
 func (i *InitiatorState) checkEnoughBalance() (error) {

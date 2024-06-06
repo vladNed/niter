@@ -88,6 +88,10 @@ func (s *ParticipantState) GetEvents() []SEvents {
 	return s.events
 }
 
+func (s *ParticipantState) GetTransactionDetails(requestType TransactionRequestType) (map[string]interface{}, error) {
+	return nil, nil
+}
+
 func (s *ParticipantState) handleSInit() error {
 	logger.Debug("SInit event handling started")
 

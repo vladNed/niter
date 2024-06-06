@@ -94,10 +94,34 @@ func (se *SEvents) String() string {
 	}
 }
 
+type TransactionRequestType string
+const (
+	CreateSwap TransactionRequestType = "CreateSwap"
+	SetReadySwap TransactionRequestType = "SetReadySwap"
+	ClaimSwap TransactionRequestType = "ClaimSwap"
+	RefundSwap TransactionRequestType = "RefundSwap"
+)
+
+func (t TransactionRequestType) String() string {
+	return string(t)
+}
+
+var transactionRequestTypeMap = map[string]TransactionRequestType{
+	"CreateSwap": CreateSwap,
+	"SetReadySwap": SetReadySwap,
+	"ClaimSwap": ClaimSwap,
+	"RefundSwap": RefundSwap,
+}
+
+func TransactionRequestTypeFromString(s string) TransactionRequestType {
+	return transactionRequestTypeMap[s]
+}
+
 type SwapState interface {
 	Start()
 	Close()
 	RunEventHandler()
 	handleSwapEvent(event SEvents)
 	GetEvents() []SEvents
+	GetTransactionDetails(requestType TransactionRequestType) (map[string]interface{}, error)
 }

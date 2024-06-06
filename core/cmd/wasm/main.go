@@ -472,6 +472,39 @@ func getSwapEvents(this js.Value, args []js.Value) interface{} {
 	return js.ValueOf(eventsPayload)
 }
 
+func getTransactionRequest(this js.Value, args []js.Value) interface{} {
+	if err := isPeerInitialized(); err != nil {
+		return err
+	}
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+
+		go func() {
+			if len(args) == 0 {
+				reject.Invoke(js.Global().Get("Error").New("No arguments provided"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
+			transactionRequest := args[0].String()
+			transactionRequestType := protocol.TransactionRequestTypeFromString(transactionRequest)
+			swapState, err := peer.SwapState.GetTransactionDetails(transactionRequestType)
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New("Error getting transaction details: " + err.Error()))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			resolve.Invoke(js.ValueOf(swapState))
+
+		}()
+
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
 func main() {
 	go txs.RunTxPoolHandler(txPool, txPoolChannel)
 	jsGlobal := js.Global()
@@ -497,6 +530,7 @@ func main() {
 
 	// Swap
 	jsGlobal.Set("wasmGetSwapEvents", js.FuncOf(getSwapEvents))
+	jsGlobal.Set("wasmTransactionRequest", js.FuncOf(getTransactionRequest))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})
