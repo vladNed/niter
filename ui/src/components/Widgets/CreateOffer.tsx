@@ -8,6 +8,8 @@ import {
   type SwapFieldProps,
 } from 'types';
 import { CoinCurrency, OfferSide } from 'localConstants';
+import { useGetAccountInfo } from '@multiversx/sdk-dapp/hooks/account/useGetAccountInfo';
+import { formatCoinAmount } from 'helpers/amountsHelpers';
 
 const SwapField = (props: SwapFieldProps) => {
   return (
@@ -46,6 +48,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
   const [receivingToken, setReceivingToken] = useState<SideToken>(tokens[1]);
   const [sendingAmount, setSendingAmount] = useState<string>('');
   const [receivingAmount, setReceivingAmount] = useState<string>('');
+  const { account } = useGetAccountInfo();
 
   const handleSideSwap = () => {
     const temp = sendingToken
@@ -54,18 +57,18 @@ export const CreateOffer = (props: CreateOfferProps) => {
     const tempAmount = sendingAmount
     setSendingAmount(receivingAmount)
     setReceivingAmount(tempAmount)
-  }
+  };
 
   const handleSwapAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    var value = e.target.value
-    const side = e.target.getAttribute('data-side')
+    var value = e.target.value;
+    const side = e.target.getAttribute('data-side');
 
     if (value === '00') {
       value = '0.0'
-    }
+    };
 
-    const isDecimal = /^\d*\.?\d{0,4}$/.test(value)
-    if (!isDecimal && value !== '') return
+    const isDecimal = /^\d*\.?\d{0,4}$/.test(value);
+    if (!isDecimal && value !== '') return;
 
     switch (side) {
       case OfferSide.SENDING:
@@ -76,14 +79,20 @@ export const CreateOffer = (props: CreateOfferProps) => {
         break
       default:
         break
-    }
-  }
+    };
+  };
 
   const handleCreateOffer = () => {
     const sendingAmountNum = parseFloat(sendingAmount)
     const receivingAmountNum = parseFloat(receivingAmount)
     if (isNaN(sendingAmountNum) || isNaN(receivingAmountNum) || sendingAmountNum <= 0 || receivingAmountNum <= 0){
       setErrMsg('Not all amounts are provided')
+      return
+    }
+
+    const accountBalance = formatCoinAmount(account.balance, CoinCurrency.EGLD);
+    if (sendingToken.name === CoinCurrency.EGLD && sendingAmountNum > accountBalance) {
+      setErrMsg('Not enough balance')
       return
     }
 
@@ -98,7 +107,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString()
     }
     props.handleReceiptShow(data)
-  }
+  };
 
 
   return (
@@ -137,7 +146,7 @@ export const CreateOffer = (props: CreateOfferProps) => {
       </div>
       <div className='mt-1'>
         <CreateOfferButton
-          text={'Create offer'}
+          text='Create offer'
           onClick={handleCreateOffer}
         />
       </div>

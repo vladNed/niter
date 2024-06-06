@@ -5,3 +5,5 @@ export {
   EXTRA_GAS_LIMIT_GUARDED_TX,
   VERSION
 } from '@multiversx/sdk-dapp/constants';
+
+export const BTC_DECIMALS = 8;
