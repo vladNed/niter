@@ -1,8 +1,18 @@
 import { CloseIcon } from 'components/Icons'
-import { SwapSide } from 'localConstants';
+import {
+  SwapEvents,
+  SwapSide
+} from 'localConstants';
 import { useEffect, useState } from 'react'
-import { InitiatorStepOne, OfferConnecting, OfferCreatedStep, ParticipantStepOne } from './Steps';
-import { type OfferDetails } from 'types';
+import {
+  InitiatorStepOne,
+  OfferConnecting,
+  OfferCreatedStep,
+  ParticipantStepOne
+} from './Steps';
+import {
+  type OfferDetails,
+} from 'types';
 import { InitiatorStepTwo } from './Steps/InitiatorStepTwo';
 
 
@@ -13,33 +23,49 @@ type SwapModalProps = {
   swapSide?: SwapSide;
 };
 
+type InitiatorStateMap = {
+  [key in SwapEvents]: JSX.Element | undefined;
+};
+
+type ParticipantStateMap = {
+  [key in SwapEvents]: JSX.Element | undefined;
+};
+
 export const SwapModal = (props: SwapModalProps) => {
   const [peerState, setPeerState] = useState<string>('');
   const [swapStarted, setSwapStarted] = useState<boolean>(false);
-  const [currentSwapStep, setCurrentSwapStep] = useState<number>(0);
-
-  const handleProgress = () => {
-    setCurrentSwapStep(currentSwapStep + 1);
-  }
-
-  const InitiatorStates = [
-    <InitiatorStepOne offerData={props.offerData} progressHandler={handleProgress}/>,
-    <InitiatorStepTwo offerData={props.offerData} progressHandler={handleProgress}/>
-  ];
-
-  const ReceiverStates = [
-    <ParticipantStepOne />
-  ];
+  const [swapEvents, setSwapEvents] = useState<SwapEvents[]>([]);
+  const initiatorStatesMap: InitiatorStateMap = {
+    [SwapEvents.SInit]: undefined,
+    [SwapEvents.SInitDone]: <InitiatorStepOne offerData={props.offerData} />,
+    [SwapEvents.SLockedEGLD]: <InitiatorStepTwo offerData={props.offerData} />,
+    [SwapEvents.SLockeedBTC]: undefined,
+    [SwapEvents.SRefund]: undefined,
+    [SwapEvents.SClaimed]: undefined,
+    [SwapEvents.SOk]: undefined,
+    [SwapEvents.SFailed]: undefined
+  };
+  const participantStatesMap: ParticipantStateMap = {
+    [SwapEvents.SInit]: undefined,
+    [SwapEvents.SInitDone]:  <ParticipantStepOne />,
+    [SwapEvents.SLockedEGLD]: undefined,
+    [SwapEvents.SLockeedBTC]: undefined,
+    [SwapEvents.SClaimed]: undefined,
+    [SwapEvents.SRefund]: undefined,
+    [SwapEvents.SOk]: undefined,
+    [SwapEvents.SFailed]: undefined
+  };
 
   const getCurrentStep = () => {
+    const lastEvent = swapEvents.slice(-1)[0];
     switch (props.swapSide) {
       case SwapSide.INITIATOR:
-        return InitiatorStates[currentSwapStep];
+        return initiatorStatesMap[lastEvent];
       case SwapSide.PARTICIPANT:
-        return ReceiverStates[currentSwapStep];
+        return participantStatesMap[lastEvent];
       default:
-        return undefined;
-    };
+        return;
+    }
   };
 
   const getOpeningStep = () => {
@@ -51,10 +77,30 @@ export const SwapModal = (props: SwapModalProps) => {
   };
 
   useEffect(() => {
+    const fetchSwapEvents = setInterval(async () => {
+      let fetchedSwapEvents: string[];
+      try{
+        fetchedSwapEvents = await wasmGetSwapEvents();
+      } catch (e) {
+        return;
+      };
+
+      let data: SwapEvents[] = [];
+      for (const event of fetchedSwapEvents) {
+        data.push(SwapEvents[event as keyof typeof SwapEvents]);
+      }
+
+      setSwapEvents(data);
+    }, 500);
+
+    return () => clearInterval(fetchSwapEvents);
+  }, [setSwapEvents, swapEvents]);
+
+  useEffect(() => {
     const fetchPeerState = setInterval(() => {
       const peerState = wasmGetPeerState();
       setPeerState(peerState.state);
-    }, 100);
+    }, 500);
 
     return () => clearInterval(fetchPeerState);
   }, []);
@@ -65,7 +111,7 @@ export const SwapModal = (props: SwapModalProps) => {
         setSwapStarted(true);
         clearInterval(startSwapListener);
       }
-    }, 100);
+    }, 500);
 
     return () => clearInterval(startSwapListener);
   }, [peerState, setSwapStarted]);

@@ -41,12 +41,13 @@ type InitiatorState struct {
 }
 
 func NewInitiatorState(
+	peerContext context.Context,
 	offerDetails *schemas.OfferDetails,
 	sendPeerChannel chan schemas.SwapMessage,
 	mvxAddress string,
 	isCreator bool,
 ) *InitiatorState {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(peerContext)
 	return &InitiatorState{
 		ctx:               ctx,
 		cancel:            cancel,
@@ -191,6 +192,6 @@ func (i *InitiatorState) handleSInit() error {
 
 func (i *InitiatorState) handleSInitDone() error {
 	logger.Debug("SInitDone event handling started")
-
+	i.events = append(i.events, SInitDone)
 	return nil
 }

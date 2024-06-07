@@ -75,7 +75,7 @@ declare function wasmInitWallet(wif?: string, mvxAddress?: string): Promise<stri
 /*
   * Gets all the events that happened in a swap context
   */
-declare function wasmGetSwapEvents(): string[];
+declare function wasmGetSwapEvents(): Promise<string[]>;
 
 
 /**

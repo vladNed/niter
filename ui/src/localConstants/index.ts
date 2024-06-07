@@ -3,3 +3,4 @@ export * from './sdkDapConstants';
 export * from './signMessage';
 export * from './session';
 export * from './offers';
+export * from './swap';

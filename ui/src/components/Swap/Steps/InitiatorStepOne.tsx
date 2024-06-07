@@ -32,7 +32,7 @@ export const InitiatorStepOne = (props: SwapStepProps) => {
 
   useEffect(() => {
     if (transactionStatus.isSuccessful) {
-      props.progressHandler();
+      console.log('Transaction successful');
     }
   }, [transactionStatus]);
 

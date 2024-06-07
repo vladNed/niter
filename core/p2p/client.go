@@ -246,6 +246,7 @@ func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
 	if offer.OfferDetails.SwapCreator == p.Id() {
 		if offer.OfferDetails.SendingCurrency == protocol.EGLD.String() {
 			p.SwapState = protocol.NewInitiatorState(
+				p.ctx,
 				&offer.OfferDetails,
 				p.swapChannel,
 				p.mvxWallet.Address,
@@ -257,6 +258,7 @@ func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
 	} else {
 		if offer.OfferDetails.ReceivingCurrency == protocol.EGLD.String() {
 			p.SwapState = protocol.NewInitiatorState(
+				p.ctx,
 				&offer.OfferDetails,
 				p.swapChannel,
 				p.mvxWallet.Address,

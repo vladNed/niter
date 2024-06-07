@@ -74,21 +74,21 @@ const (
 func (se *SEvents) String() string {
 	switch *se {
 	case SInit:
-		return "Initialized"
+		return "SInit"
 	case SInitDone:
-		return "InitializedCompleted"
+		return "SInitDone"
 	case SLockedEGLD:
-		return "EGLD Value Locked"
+		return "SLockedEGLD"
 	case SLockedBTC:
-		return "BTC Value Locked"
+		return "SLockedBTC"
 	case SRefund:
-		return "Refunded"
+		return "SRefund"
 	case SClaimed:
-		return "Claimed"
+		return "SClaimed"
 	case SOk:
-		return "Ok"
+		return "SOk"
 	case SFailed:
-		return "Failed"
+		return "SFailed"
 	default:
 		return "Unknown"
 	}

@@ -1,18 +1,12 @@
 import { type OfferDetails } from 'types';
 
-type CreateSwapProps = {
+export type CreateSwapProps = {
   amount: string;
   claimProof: string;
   refundProof: string;
   callbackRoute: string;
 };
 
-type SwapStepProps = {
+export type SwapStepProps = {
   offerData?: OfferDetails;
-  progressHandler: () => void;
-};
-
-export type {
-  CreateSwapProps,
-  SwapStepProps,
 };

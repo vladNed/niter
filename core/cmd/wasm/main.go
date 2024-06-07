@@ -456,20 +456,35 @@ func markPendingBroadcast(this js.Value, args []js.Value) interface{} {
 }
 
 func getSwapEvents(this js.Value, args []js.Value) interface{} {
-	if err := isPeerInitialized(); err != nil {
-		return err
-	}
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+		go func() {
+			if err := isPeerInitialized(); err != nil {
+				reject.Invoke(err)
+				resolve.Invoke(js.Undefined())
+				return
+			}
 
-	if peer.State != protocol.PeerCommunicating || peer.SwapState == nil {
-		return js.ValueOf(make([]interface{}, 0))
-	}
+			if peer.State != protocol.PeerCommunicating || peer.SwapState == nil {
+				resolve.Invoke(js.ValueOf([]interface{}{}))
+				return
+			}
 
-	events := peer.SwapState.GetEvents()
-	var eventsPayload []interface{}
-	for _, event := range events {
-		eventsPayload = append(eventsPayload, event.String())
-	}
-	return js.ValueOf(eventsPayload)
+
+			events := peer.SwapState.GetEvents()
+			var eventsPayload []interface{}
+			for _, event := range events {
+				eventsPayload = append(eventsPayload, event.String())
+			}
+			resolve.Invoke(js.ValueOf(eventsPayload))
+			reject.Invoke(js.Undefined())
+		}()
+
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
 }
 
 func getTransactionRequest(this js.Value, args []js.Value) interface{} {
