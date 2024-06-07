@@ -3,3 +3,4 @@ export * from './withPageTitle';
 export * from './useScrollToElement';
 export * from './useIsWebProvider';
 export * from './transactions';
+export * from './useWasm';

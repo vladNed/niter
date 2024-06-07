@@ -14,6 +14,7 @@ import {
   type OfferDetails,
 } from 'types';
 import { InitiatorStepTwo } from './Steps/InitiatorStepTwo';
+import { useWasm } from 'hooks';
 
 
 type SwapModalProps = {
@@ -35,6 +36,7 @@ export const SwapModal = (props: SwapModalProps) => {
   const [peerState, setPeerState] = useState<string>('');
   const [swapStarted, setSwapStarted] = useState<boolean>(false);
   const [swapEvents, setSwapEvents] = useState<SwapEvents[]>([]);
+  const { getSwapEvents } = useWasm();
   const initiatorStatesMap: InitiatorStateMap = {
     [SwapEvents.SInit]: undefined,
     [SwapEvents.SInitDone]: <InitiatorStepOne offerData={props.offerData} />,
@@ -78,21 +80,9 @@ export const SwapModal = (props: SwapModalProps) => {
 
   useEffect(() => {
     const fetchSwapEvents = setInterval(async () => {
-      let fetchedSwapEvents: string[];
-      try{
-        fetchedSwapEvents = await wasmGetSwapEvents();
-      } catch (e) {
-        return;
-      };
-
-      let data: SwapEvents[] = [];
-      for (const event of fetchedSwapEvents) {
-        data.push(SwapEvents[event as keyof typeof SwapEvents]);
-      }
-
-      setSwapEvents(data);
+      const swapEvents = await getSwapEvents();
+      setSwapEvents(swapEvents);
     }, 500);
-
     return () => clearInterval(fetchSwapEvents);
   }, [setSwapEvents, swapEvents]);
 
