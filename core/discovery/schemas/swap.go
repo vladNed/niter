@@ -9,6 +9,7 @@ type SwapMessageType int // The message type for the swap message
 
 const (
 	Secret SwapMessageType = iota
+	ContractCreated
 )
 
 type SwapMessage struct {

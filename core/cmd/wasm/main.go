@@ -24,7 +24,8 @@ var (
 	logger        logging.Logger = logging.NewLogger(logging.INFO)
 	wsClient      *discovery.WSClient
 	peer          *p2p.Peer
-	eventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
+	p2pEventsChannel chan protocol.PeerEvents = make(chan protocol.PeerEvents)
+	swapEventsChannel chan protocol.SEventMessage = make(chan protocol.SEventMessage)
 	msgChannel    chan schemas.Message     = make(chan schemas.Message)
 	btcWallet     *bitcoin.Wallet
 	mvxWallet     *mvx.Wallet
@@ -73,7 +74,7 @@ func startWSClient() interface{} {
 
 // Start webRTC connection
 func startPeerClient() interface{} {
-	newPeer, err := p2p.NewPeer(eventsChannel, msgChannel, btcWallet, mvxWallet)
+	newPeer, err := p2p.NewPeer(p2pEventsChannel, swapEventsChannel, msgChannel, btcWallet, mvxWallet)
 	if err != nil {
 		return js.Global().Get("Error").New("Error creating peer: " + err.Error())
 	}
@@ -181,7 +182,7 @@ func createOffer(this js.Value, args []js.Value) interface{} {
 				resolve.Invoke(js.Undefined())
 				return
 			}
-			event := <-eventsChannel
+			event := <-p2pEventsChannel
 			if event != protocol.InitiatorICECandidate {
 				reject.Invoke(js.Global().Get("Error").New("Error gathering ICE candidates"))
 				resolve.Invoke(js.Undefined())
@@ -266,7 +267,7 @@ func createAnswer(this js.Value, args []js.Value) interface{} {
 				resolve.Invoke(js.Undefined())
 				return
 			}
-			event := <-eventsChannel
+			event := <-p2pEventsChannel
 			if event != protocol.ResponderICECandidate {
 				reject.Invoke(js.Global().Get("Error").New("Error gathering ICE candidates"))
 				resolve.Invoke(js.Undefined())
@@ -520,6 +521,52 @@ func getTransactionRequest(this js.Value, args []js.Value) interface{} {
 	return js.Global().Get("Promise").New(handler)
 }
 
+func emitSwapEvent(this js.Value, args []js.Value) interface{} {
+	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
+		resolve := inputs[0]
+		reject := inputs[1]
+		go func() {
+			if err := isPeerInitialized(); err != nil {
+				reject.Invoke(err)
+				resolve.Invoke(js.Undefined())
+				return
+			}
+			if peer.State != protocol.PeerCommunicating || peer.SwapState == nil {
+				resolve.Invoke(js.Global().Get("Error").New("Peer not in communicating state"))
+				return
+			}
+
+			// There are two arguments needed here:
+			// 1. The event that happened
+			// 2. The data associated with the event that comes in a JSON base64 encoded format
+			if len(args) != 2 {
+				reject.Invoke(js.Global().Get("Error").New("Invalid arguments provided"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
+			// Process the event type
+			event := args[0].String()
+			sevent := protocol.SEventsFromString(event)
+			if sevent == protocol.Unknown {
+				reject.Invoke(js.Global().Get("Error").New("Invalid event type"))
+				resolve.Invoke(js.Undefined())
+				return
+			}
+
+
+			swapEventsChannel <- protocol.SEventMessage{
+				Event: sevent,
+				Data:  args[1].String(),
+			}
+
+			resolve.Invoke(js.Undefined())
+		}()
+		return nil
+	})
+	return js.Global().Get("Promise").New(handler)
+}
+
 func main() {
 	go txs.RunTxPoolHandler(txPool, txPoolChannel)
 	jsGlobal := js.Global()
@@ -546,6 +593,7 @@ func main() {
 	// Swap
 	jsGlobal.Set("wasmGetSwapEvents", js.FuncOf(getSwapEvents))
 	jsGlobal.Set("wasmTransactionRequest", js.FuncOf(getTransactionRequest))
+	jsGlobal.Set("wasmEmitSwapEvent", js.FuncOf(emitSwapEvent))
 
 	// This is a blocking call to keep the wasm running.
 	<-make(chan struct{})

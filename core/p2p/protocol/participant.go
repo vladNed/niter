@@ -13,7 +13,7 @@ type ParticipantState struct {
 	// Managing the state of the Initiator
 	ctx             context.Context
 	cancel          context.CancelFunc
-	eventChannel    chan SEvents
+	eventChannel    chan SEventMessage
 	sendPeerChannel chan schemas.SwapMessage
 
 	// Offer Details
@@ -36,7 +36,7 @@ func NewParticipantState(offerDetails *schemas.OfferDetails, sendPeerChannel cha
 	return &ParticipantState{
 		ctx:               ctx,
 		cancel:            cancel,
-		eventChannel:      make(chan SEvents),
+		eventChannel:      make(chan SEventMessage),
 		sendPeerChannel:   sendPeerChannel,
 		receivingAmount:   offerDetails.ReceivingAmount,
 		receivingCurrency: offerDetails.ReceivingCurrency,
@@ -53,22 +53,32 @@ func (s *ParticipantState) RunEventHandler() {
 		case <-s.ctx.Done():
 			logger.Error("ParticipantState: Context cancelled")
 			return
-		case event := <-s.eventChannel:
-			go s.handleSwapEvent(event)
+		case eventMessage := <-s.eventChannel:
+			go s.handleSwapEvent(eventMessage.Event, eventMessage.Data)
 		}
 	}
 }
 
-func (s *ParticipantState) handleSwapEvent(event SEvents) {
+func (s *ParticipantState) handleSwapEvent(event SEvents, data string) {
 	switch event {
 	case SInit:
+		s.events = append(s.events, event)
 		err := s.handleSInit()
 		if err != nil {
-			logger.Error("Error handling SInit event: ", err.Error())
-			// TODO: Handle error in events
+			s.eventChannel <- SEventMessage{Event: SFailed, Data: ""}
 		}
 	case SInitDone:
-		logger.Debug("InitiatorState: SInitDone")
+		s.events = append(s.events, event)
+		err := s.handleSInitDone()
+		if err != nil {
+			s.eventChannel <- SEventMessage{Event: SFailed, Data: ""}
+		}
+	case SLockedEGLD:
+		s.events = append(s.events, event)
+		err := s.handleSLockedEGLD()
+		if err != nil {
+			s.eventChannel <- SEventMessage{Event: SFailed, Data: ""}
+		}
 	default:
 		logger.Debug("InitiatorState: Unknown event")
 	}
@@ -81,7 +91,7 @@ func (s *ParticipantState) Close() {
 func (s *ParticipantState) Start() {
 	logger.Debug("ParticipantState: Starting the state machine")
 	go s.RunEventHandler()
-	s.eventChannel <- SInit
+	s.eventChannel <- SEventMessage{Event: SInit, Data: ""}
 }
 
 func (s *ParticipantState) GetEvents() []SEvents {
@@ -121,7 +131,23 @@ func (s *ParticipantState) handleSInit() error {
 	}
 	s.peerProof = peerMessage.Payload
 	s.events = append(s.events, SInit)
-	s.eventChannel <- SInitDone
+	s.eventChannel <- SEventMessage{Event: SInitDone, Data: ""}
 
+	return nil
+}
+
+func (s *ParticipantState) handleSInitDone() error {
+	logger.Debug("SInitDone event handling started")
+	peerMessage := <-s.sendPeerChannel
+	if peerMessage.Type != schemas.ContractCreated {
+		logger.Error("Expected ContractCreated message from peer")
+		return errors.New("invalid contract created message received")
+	}
+	s.eventChannel <- SEventMessage{Event: SLockedEGLD, Data: ""}
+	return nil
+}
+
+func (s *ParticipantState) handleSLockedEGLD() error {
+	logger.Debug("SLockedEGLD event handling started")
 	return nil
 }

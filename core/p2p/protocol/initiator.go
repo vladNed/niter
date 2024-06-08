@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 
@@ -19,10 +20,10 @@ type InitiatorState struct {
 	// Managing the state of the Initiator
 	ctx             context.Context
 	cancel          context.CancelFunc
-	eventChannel    chan SEvents
+	eventChannel    chan SEventMessage
 	sendPeerChannel chan schemas.SwapMessage
 
-	mvxAddress      string
+	mvxAddress string
 
 	// Offer Details
 	receivingAmount   string
@@ -44,6 +45,7 @@ func NewInitiatorState(
 	peerContext context.Context,
 	offerDetails *schemas.OfferDetails,
 	sendPeerChannel chan schemas.SwapMessage,
+	swapEventsChannel chan SEventMessage,
 	mvxAddress string,
 	isCreator bool,
 ) *InitiatorState {
@@ -51,7 +53,7 @@ func NewInitiatorState(
 	return &InitiatorState{
 		ctx:               ctx,
 		cancel:            cancel,
-		eventChannel:      make(chan SEvents),
+		eventChannel:      swapEventsChannel,
 		sendPeerChannel:   sendPeerChannel,
 		receivingAmount:   offerDetails.ReceivingAmount,
 		receivingCurrency: offerDetails.ReceivingCurrency,
@@ -69,25 +71,31 @@ func (i *InitiatorState) RunEventHandler() {
 		case <-i.ctx.Done():
 			logger.Debug("InitiatorState: Context cancelled")
 			return
-		case event := <-i.eventChannel:
-			go i.handleSwapEvent(event)
+		case eventMessage := <-i.eventChannel:
+			go i.handleSwapEvent(eventMessage.Event, eventMessage.Data)
 		}
 	}
 }
 
-func (i *InitiatorState) handleSwapEvent(event SEvents) {
+func (i *InitiatorState) handleSwapEvent(event SEvents, eventData string) {
 	switch event {
 	case SInit:
+		i.events = append(i.events, event)
 		err := i.handleSInit()
 		if err != nil {
-			logger.Error("Error handling SInit event: ", err.Error())
-			// TODO: Handle error in events
+			i.eventChannel <- SEventMessage{Event: SFailed, Data: ""}
 		}
 	case SInitDone:
+		i.events = append(i.events, event)
 		err := i.handleSInitDone()
 		if err != nil {
-			logger.Error("Error handling SInitDone event: ", err.Error())
-			// TODO: Handle error in events
+			i.eventChannel <- SEventMessage{Event: SFailed, Data: ""}
+		}
+	case SLockedEGLD:
+		i.events = append(i.events, event)
+		err := i.handleSLockedEGLD(eventData)
+		if err != nil {
+			i.eventChannel <- SEventMessage{Event: SFailed, Data: ""}
 		}
 	default:
 		logger.Debug("InitiatorState: Unknown event")
@@ -101,7 +109,7 @@ func (i *InitiatorState) Close() {
 func (i *InitiatorState) Start() {
 	logger.Debug("InitiatorState: Starting the state machine")
 	go i.RunEventHandler()
-	i.eventChannel <- SInit
+	i.eventChannel <- SEventMessage{Event: SInit, Data: ""}
 }
 
 func (i *InitiatorState) GetEvents() []SEvents {
@@ -118,9 +126,9 @@ func (i *InitiatorState) GetTransactionDetails(requestType TransactionRequestTyp
 			amount = i.receivingAmount
 		}
 		data := map[string]interface{}{
-			"claimProof": hex.EncodeToString(i.peerProof),
+			"claimProof":  hex.EncodeToString(i.peerProof),
 			"refundProof": hex.EncodeToString(i.secretProof),
-			"amount": amount,
+			"amount":      amount,
 		}
 		return data, nil
 	default:
@@ -128,7 +136,7 @@ func (i *InitiatorState) GetTransactionDetails(requestType TransactionRequestTyp
 	}
 }
 
-func (i *InitiatorState) checkEnoughBalance() (error) {
+func (i *InitiatorState) checkEnoughBalance() error {
 	mvxBalance, err := mvx.GetAddressBalance(i.mvxAddress)
 	if err != nil {
 		logger.Error("Error getting balance: ", err.Error())
@@ -185,13 +193,27 @@ func (i *InitiatorState) handleSInit() error {
 		return errors.New("invalid message type received")
 	}
 	i.peerProof = peerMessage.Payload
-	i.events = append(i.events, SInit)
-	i.eventChannel <- SInitDone
+	i.eventChannel <- SEventMessage{Event: SInitDone, Data: ""}
 	return nil
 }
 
 func (i *InitiatorState) handleSInitDone() error {
 	logger.Debug("SInitDone event handling started")
-	i.events = append(i.events, SInitDone)
+
+	return nil
+}
+
+func (i *InitiatorState) handleSLockedEGLD(eventData string) error {
+	eventDataDecoded, err := base64.StdEncoding.DecodeString(eventData)
+	if err != nil {
+		logger.Error("Error decoding event data")
+		return err
+	}
+
+	i.sendPeerChannel <- schemas.SwapMessage{
+		Type:    schemas.ContractCreated,
+		Payload: eventDataDecoded,
+	}
+
 	return nil
 }

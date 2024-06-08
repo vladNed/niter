@@ -82,3 +82,10 @@ declare function wasmGetSwapEvents(): Promise<string[]>;
  * The function that retrieves the data from the swap state to create a transaction.
  */
 declare function wasmTransactionRequest(transactionType: string): Promise<any>;
+
+/**
+ * Swap event emmiter used by FE to emit user events on the swap
+ * @param event The event to emit in string format
+ * @param data The data to emit that is a JSON base64 encoded object
+ */
+declare function wasmEmitSwapEvent(event: string, data: string): Promise<void>;

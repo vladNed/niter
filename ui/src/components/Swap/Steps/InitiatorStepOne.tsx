@@ -1,12 +1,16 @@
-import { useSwapRouterTransactions } from "hooks";
-import { CoinCurrency, TransactionRequestTypes } from "localConstants";
+import { useSwapRouterTransactions, useWasm } from "hooks";
+import { CoinCurrency, SwapEvents, TransactionRequestTypes } from "localConstants";
 import { useEffect, useState } from "react";
 import { type SwapStepProps } from "types";
 
 export const InitiatorStepOne = (props: SwapStepProps) => {
   const [errMsg, setErrMsg] = useState<string>('');
 
-  const { sendCreateSwapTransaction, transactionStatus } = useSwapRouterTransactions();
+  const {
+    sendCreateSwapTransaction,
+    transactionStatus
+  } = useSwapRouterTransactions();
+  const { emitSwapEvent } = useWasm();
 
   const onCreateSwap =  async() => {
     let txData: any;
@@ -31,9 +35,28 @@ export const InitiatorStepOne = (props: SwapStepProps) => {
   }
 
   useEffect(() => {
-    if (transactionStatus.isSuccessful) {
-      console.log('Transaction successful');
-    }
+    const emitEvent = async () => {
+      try {
+        if (transactionStatus.isSuccessful) {
+          const txData = transactionStatus.transactions?.[0];
+          const txHash = txData?.hash;
+          if (!txHash) {
+            setErrMsg('Transaction hash not found');
+            return;
+          }
+          await emitSwapEvent(SwapEvents.SLockedEGLD, { hash: txHash });
+          return;
+        } else if (transactionStatus.isFailed) {
+          await emitSwapEvent(SwapEvents.SFailed, {});
+          return;
+        }
+      } catch (e) {
+        console.log(e);
+        setErrMsg('Failed to emit swap event');
+      };
+    };
+
+    emitEvent();
   }, [transactionStatus]);
 
   return (
@@ -43,19 +66,19 @@ export const InitiatorStepOne = (props: SwapStepProps) => {
         <div className='text-2xl font-medium'>Lock funds:</div>
         <ul className='text-xl justify-center'>
           <li>
-            <div className='flex flex-row gap-4 grid grid-cols-2'>
+            <div className='flex flex-row gap-4 grid-cols-2'>
               <span className='col-span-1'>Amount:</span>
               <span className='col-span-1 text-right'>{getAmount()}</span>
             </div>
           </li>
           <li>
-            <div className='flex flex-row gap-4 grid grid-cols-2'>
+            <div className='flex flex-row gap-4 grid-cols-2'>
               <span className='col-span-1 '>Lock for:</span>
               <span className='col-span-1 text-right'>Not Implemented</span>
             </div>
           </li>
           <li>
-            <div className='flex flex-row gap-4 grid grid-cols-2'>
+            <div className='flex flex-row gap-4 grid-cols-2'>
               <span className='col-span-1'>Refund after:</span>
               <span className='col-span-1 text-right'>Not Implemented</span>
             </div>

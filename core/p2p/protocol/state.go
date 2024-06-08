@@ -2,6 +2,7 @@ package protocol
 
 // The Peer state machine enumeration
 type PeerState int
+
 const (
 
 	// PeerIdle is the initial state of the peer
@@ -52,6 +53,7 @@ func (p PeerState) String() string {
 
 // PeerEvents is the enumeration of the events that can be triggered on the peer
 type PeerEvents int
+
 const (
 	UnknownEvent PeerEvents = iota
 	ResponderICECandidate
@@ -60,6 +62,7 @@ const (
 
 // The events that can be triggered during a swap
 type SEvents int
+
 const (
 	SInit SEvents = iota
 	SInitDone
@@ -69,6 +72,7 @@ const (
 	SClaimed
 	SOk
 	SFailed
+	Unknown
 )
 
 func (se *SEvents) String() string {
@@ -94,12 +98,46 @@ func (se *SEvents) String() string {
 	}
 }
 
+func SEventsFromString(s string) SEvents {
+	switch s {
+	case "SInit":
+		return SInit
+	case "SInitDone":
+		return SInitDone
+	case "SLockedEGLD":
+		return SLockedEGLD
+	case "SLockedBTC":
+		return SLockedBTC
+	case "SRefund":
+		return SRefund
+	case "SClaimed":
+		return SClaimed
+	case "SOk":
+		return SOk
+	case "SFailed":
+		return SFailed
+	default:
+		return Unknown
+	}
+}
+
+// The message that is passed to thee state machine from the event emitter
+type SEventMessage struct {
+	Event SEvents
+	Data  string
+}
+
+type SLockedEGLDData struct {
+	TxHash string `json:"hash"`
+}
+
 type TransactionRequestType string
+
 const (
-	CreateSwap TransactionRequestType = "CreateSwap"
+	CreateSwap   TransactionRequestType = "CreateSwap"
 	SetReadySwap TransactionRequestType = "SetReadySwap"
-	ClaimSwap TransactionRequestType = "ClaimSwap"
-	RefundSwap TransactionRequestType = "RefundSwap"
+	ClaimSwap    TransactionRequestType = "ClaimSwap"
+	RefundSwap   TransactionRequestType = "RefundSwap"
 )
 
 func (t TransactionRequestType) String() string {
@@ -107,10 +145,10 @@ func (t TransactionRequestType) String() string {
 }
 
 var transactionRequestTypeMap = map[string]TransactionRequestType{
-	"CreateSwap": CreateSwap,
+	"CreateSwap":   CreateSwap,
 	"SetReadySwap": SetReadySwap,
-	"ClaimSwap": ClaimSwap,
-	"RefundSwap": RefundSwap,
+	"ClaimSwap":    ClaimSwap,
+	"RefundSwap":   RefundSwap,
 }
 
 func TransactionRequestTypeFromString(s string) TransactionRequestType {
@@ -121,7 +159,7 @@ type SwapState interface {
 	Start()
 	Close()
 	RunEventHandler()
-	handleSwapEvent(event SEvents)
+	handleSwapEvent(event SEvents, data string)
 	GetEvents() []SEvents
 	GetTransactionDetails(requestType TransactionRequestType) (map[string]interface{}, error)
 }

@@ -28,13 +28,14 @@ type RemotePeerInfo struct {
 type Peer struct {
 
 	// WebRTC Peer Data
-	LocalConnection *webrtc.PeerConnection
-	DataChannel     *webrtc.DataChannel
-	State           protocol.PeerState
-	KeyPair         *crypto.NetworkKey
-	RemotePeer      *RemotePeerInfo
-	eventsChannel   chan protocol.PeerEvents
-	msgChannel      chan msgSchemas.Message
+	LocalConnection   *webrtc.PeerConnection
+	DataChannel       *webrtc.DataChannel
+	State             protocol.PeerState
+	KeyPair           *crypto.NetworkKey
+	RemotePeer        *RemotePeerInfo
+	p2pEventsChannel  chan protocol.PeerEvents
+	swapEventsChannel chan protocol.SEventMessage
+	msgChannel        chan msgSchemas.Message
 
 	// Swap Data
 	ActiveOfferId string
@@ -51,7 +52,8 @@ type Peer struct {
 }
 
 func NewPeer(
-	eventChannel chan protocol.PeerEvents,
+	p2pEventsChannel chan protocol.PeerEvents,
+	swapEventsChannel chan protocol.SEventMessage,
 	msgChannel chan msgSchemas.Message,
 	btcWallet *bitcoin.Wallet,
 	mvxWallet *mvx.Wallet,
@@ -64,20 +66,21 @@ func NewPeer(
 		return nil, err
 	}
 	peer := &Peer{
-		LocalConnection: nil,
-		DataChannel:     nil,
-		State:           protocol.PeerIdle,
-		KeyPair:         keyPair,
-		RemotePeer:      nil,
-		eventsChannel:   eventChannel,
-		ActiveOfferId:   "",
-		msgChannel:      msgChannel,
-		SwapState:       nil,
-		ctx:             ctx,
-		cancel:          cancel,
-		swapChannel:     make(chan msgSchemas.SwapMessage),
-		btcWallet:       btcWallet,
-		mvxWallet:       mvxWallet,
+		LocalConnection:  nil,
+		DataChannel:      nil,
+		State:            protocol.PeerIdle,
+		KeyPair:          keyPair,
+		RemotePeer:       nil,
+		p2pEventsChannel: p2pEventsChannel,
+		swapEventsChannel: swapEventsChannel,
+		ActiveOfferId:    "",
+		msgChannel:       msgChannel,
+		SwapState:        nil,
+		ctx:              ctx,
+		cancel:           cancel,
+		swapChannel:      make(chan msgSchemas.SwapMessage),
+		btcWallet:        btcWallet,
+		mvxWallet:        mvxWallet,
 	}
 	logger.Debug("Peer initialized")
 	go peer.MessageHandler()
@@ -163,10 +166,10 @@ func (p *Peer) setupConnectionCallbacks() {
 		switch p.State {
 		case protocol.PeerInitiator:
 			logger.Debug("Gathering complete")
-			p.eventsChannel <- protocol.InitiatorICECandidate
+			p.p2pEventsChannel <- protocol.InitiatorICECandidate
 		case protocol.PeerResponder:
 			logger.Debug("Gathering complete")
-			p.eventsChannel <- protocol.ResponderICECandidate
+			p.p2pEventsChannel <- protocol.ResponderICECandidate
 		default:
 			logger.Warn("Unknown peer state 1")
 		}
@@ -249,6 +252,7 @@ func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
 				p.ctx,
 				&offer.OfferDetails,
 				p.swapChannel,
+				p.swapEventsChannel,
 				p.mvxWallet.Address,
 				true,
 			)
@@ -261,6 +265,7 @@ func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
 				p.ctx,
 				&offer.OfferDetails,
 				p.swapChannel,
+				p.swapEventsChannel,
 				p.mvxWallet.Address,
 				false,
 			)
