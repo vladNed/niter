@@ -6,22 +6,24 @@ import {
 import { useEffect, useState } from 'react'
 import {
   InitiatorStepOne,
+  InitiatorStepTwo,
   OfferConnecting,
   OfferCreatedStep,
-  ParticipantStepOne
-} from './Steps';
+  ParticipantStepOne,
+  ParticipantStepTwo
+} from 'components/Swap/Steps';
 import {
   type OfferDetails,
 } from 'types';
-import { InitiatorStepTwo } from './Steps/InitiatorStepTwo';
 import { useWasm } from 'hooks';
 
 
 type SwapModalProps = {
-  onClose: () => void;
   offerId: string;
   offerData?: OfferDetails;
   swapSide?: SwapSide;
+  handleStartFlow: () => void;
+  handleClose: () => void;
 };
 
 type InitiatorStateMap = {
@@ -36,7 +38,7 @@ export const SwapModal = (props: SwapModalProps) => {
   const [peerState, setPeerState] = useState<string>('');
   const [swapStarted, setSwapStarted] = useState<boolean>(false);
   const [swapEvents, setSwapEvents] = useState<SwapEvents[]>([]);
-  const { getSwapEvents } = useWasm();
+  const { getSwapEvents, resetPeer } = useWasm();
   const initiatorStatesMap: InitiatorStateMap = {
     [SwapEvents.SInit]: undefined,
     [SwapEvents.SInitDone]: <InitiatorStepOne offerData={props.offerData} />,
@@ -50,12 +52,17 @@ export const SwapModal = (props: SwapModalProps) => {
   const participantStatesMap: ParticipantStateMap = {
     [SwapEvents.SInit]: undefined,
     [SwapEvents.SInitDone]:  <ParticipantStepOne />,
-    [SwapEvents.SLockedEGLD]: undefined,
+    [SwapEvents.SLockedEGLD]: <ParticipantStepTwo offerData={props.offerData} />,
     [SwapEvents.SLockeedBTC]: undefined,
     [SwapEvents.SClaimed]: undefined,
     [SwapEvents.SRefund]: undefined,
     [SwapEvents.SOk]: undefined,
     [SwapEvents.SFailed]: undefined
+  };
+
+  const onClose = () => {
+    resetPeer();
+    props.handleClose();
   };
 
   const getCurrentStep = () => {
@@ -99,9 +106,10 @@ export const SwapModal = (props: SwapModalProps) => {
     const startSwapListener = setInterval(() => {
       if (peerState === 'PeerCommunicating') {
         setSwapStarted(true);
+        props.handleStartFlow();
         clearInterval(startSwapListener);
       }
-    }, 500);
+    }, 1000);
 
     return () => clearInterval(startSwapListener);
   }, [peerState, setSwapStarted]);
@@ -124,7 +132,7 @@ export const SwapModal = (props: SwapModalProps) => {
               </div>
             </div>
           </div>
-          <button onClick={props.onClose} className='bg-slate-100 p-1 rounded-lg hover:bg-red-300 hover:text-red-900 active:bg-red-400 duration-300 transition ease-in-out'>
+          <button onClick={onClose} className='bg-slate-100 p-1 rounded-lg hover:bg-red-300 hover:text-red-900 active:bg-red-400 duration-300 transition ease-in-out'>
             <CloseIcon />
           </button>
         </div>

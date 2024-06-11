@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/indexone/niter/core/bitcoin"
 	"github.com/indexone/niter/core/discovery/schemas"
 	"github.com/indexone/niter/core/mvx"
 	"github.com/indexone/niter/core/utils"
@@ -108,7 +110,22 @@ func (s *ParticipantState) GetEvents() []SEvents {
 }
 
 func (s *ParticipantState) GetTransactionDetails(requestType TransactionRequestType) (map[string]interface{}, error) {
-	return nil, nil
+	switch requestType {
+	case CreateSwap:
+		lockingAddress, err := bitcoin.GetLockingScriptAddress(s.peerProof, &chaincfg.TestNet3Params)
+		if err != nil {
+			return nil, err
+		}
+		addr, err := lockingAddress.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"address": addr,
+		}, nil
+	default:
+		return nil, nil
+	}
 }
 
 func (s *ParticipantState) handleSInit() error {

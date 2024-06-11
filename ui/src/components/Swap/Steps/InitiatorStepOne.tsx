@@ -34,6 +34,11 @@ export const InitiatorStepOne = (props: SwapStepProps) => {
     return `${amount} ${currency}`;
   }
 
+  // TODO: DELETE THIS IF FORGOTTEN
+  const testOnCall = async () => {
+    await emitSwapEvent(SwapEvents.SLockedEGLD, { hash: '6da3dee551be7dc8ca82e12cbed80c814101e37eaa4512e3df904af44b1f8ef0'})
+  }
+
   useEffect(() => {
     const emitEvent = async () => {
       try {

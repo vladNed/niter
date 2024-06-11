@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FindOffer, CreateOffer, ReceiptOffer } from 'components/Widgets';
 import { type OfferDetails } from 'types';
 import { SwapModal } from 'components/Swap';
@@ -10,15 +10,21 @@ export const SwapWidget = () => {
   const [currentOfferId, setCurrentOfferId] = useState<string>('');
   const [swapWidgetType, setSwapWidgetType] = useState<SwapWidgetType>(SwapWidgetType.CREATE);
   const [swapActive, setSwapActive] = useState<boolean>(false);
+  const [swapFlowStarted, setSwapFlowStarted] = useState<boolean>(false);
   const [swapSide, setSwapSide] = useState<SwapSide | undefined>(undefined);
   const [isSwapCreator, setIsSwapCreator] = useState<boolean>(false);
   const swapModeText = swapWidgetType === SwapWidgetType.FIND ? 'Find an existing offer' : 'Create a new offer';
+
+  const handleSwapStart = () => {
+    setSwapFlowStarted(true);
+  };
 
   const handleSwapClose = () => {
     setSwapActive(false);
     setCurrentOfferId('');
     setCurrentOffer(undefined);
     setSwapWidgetType(SwapWidgetType.CREATE);
+    setSwapFlowStarted(false);
   }
 
   const handleSwapMode = (mode: SwapWidgetType) => {
@@ -54,8 +60,19 @@ export const SwapWidget = () => {
     return isSwapCreator ? handleCreateConfirmation : handleSearchConfirmation;
   };
 
+  useEffect(() => {
+    const fetchPeerState = setInterval(() => {
+      const peerState = wasmGetPeerState();
+      if(peerState.state === 'PeerIdle' && swapFlowStarted) {
+        handleSwapClose();
+      }
+    }, 500);
+
+    return () => clearInterval(fetchPeerState);
+  }, [handleSwapClose, swapActive, currentOfferId, currentOffer, swapWidgetType, isSwapCreator, swapFlowStarted]);
+
   return (
-    <div className='h-full text-black font-outfit rounded-md p-4 w-full min-w-[500px] max-w-[600px] rounded-xl bg-white'>
+    <div className='h-full text-black font-outfit p-4 w-full min-w-[500px] max-w-[600px] rounded-xl bg-white'>
       <div className='mb-4 flex flex-col place-items-left gap-5'>
         <div className='p-2 flex gap-4 rounded-2xl bg-slate-100'>
           <button
@@ -81,10 +98,11 @@ export const SwapWidget = () => {
       {swapWidgetType === SwapWidgetType.CREATE && <CreateOffer handleReceiptShow={handleReceiptOffer} />}
       {swapWidgetType === SwapWidgetType.FIND && <FindOffer handleReceiptShow={handleReceiptOffer}/>}
       {swapActive && <SwapModal
-        onClose={handleSwapClose}
         offerId={currentOfferId}
         offerData={currentOffer}
         swapSide={swapSide}
+        handleStartFlow={handleSwapStart}
+        handleClose={handleSwapClose}
         />}
     </div>
   )

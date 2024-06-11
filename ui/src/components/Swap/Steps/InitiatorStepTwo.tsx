@@ -1,6 +1,6 @@
-import { faSpinner } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { type SwapStepProps } from "types";
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { type SwapStepProps } from 'types';
 
 
 export const InitiatorStepTwo = (props: SwapStepProps) => {

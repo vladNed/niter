@@ -1,5 +1,4 @@
-import { Check } from "components/Icons";
-import { useState } from "react";
+import { Check } from 'components/Icons';
 
 type UserGuideSteps = {
   completed: boolean
@@ -11,9 +10,9 @@ type StepProps = {
 }
 
 export const OfferConnecting = (props: StepProps) => {
-  const [steps, setSteps] = useState<UserGuideSteps[]>([
+  const steps: UserGuideSteps[] = [
     { completed: false, text: 'Start the swap' },
-  ]);
+  ];
 
   const handleStartSwap = async () => {
     try{

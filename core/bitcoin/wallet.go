@@ -1,8 +1,11 @@
 package bitcoin
 
 import (
+	"encoding/hex"
+
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/txscript"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 
@@ -100,4 +103,23 @@ func GenerateWallet(chainParams *chaincfg.Params) (*Wallet, error) {
 		privateKey: privateKey,
 		params:     chainParams,
 	}, nil
+}
+
+func GetLockingScriptAddress(commitmentHash []byte, chainParams *chaincfg.Params) (*Address, error) {
+	builder := txscript.NewScriptBuilder()
+	builder.AddOp(txscript.OP_0)
+	builder.AddData(commitmentHash)
+	builder.AddOp(txscript.OP_EQUAL)
+
+	script, _ := builder.Script()
+
+	scriptCommitmentStr := utils.Hash(script)
+	scriptCommitment, _ := hex.DecodeString(scriptCommitmentStr)
+
+	scriptPubKey, err := txscript.NewScriptBuilder().AddOp(txscript.OP_0).AddData(scriptCommitment).Script()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Address{commitment: scriptPubKey, params: *chainParams}, nil
 }
