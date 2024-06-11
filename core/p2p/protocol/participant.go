@@ -3,24 +3,28 @@ package protocol
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 
 	"github.com/indexone/niter/core/discovery/schemas"
+	"github.com/indexone/niter/core/mvx"
 	"github.com/indexone/niter/core/utils"
 )
 
 type ParticipantState struct {
 	// Managing the state of the Initiator
-	ctx             context.Context
-	cancel          context.CancelFunc
-	eventChannel    chan SEventMessage
-	sendPeerChannel chan schemas.SwapMessage
+	ctx                context.Context
+	cancel             context.CancelFunc
+	eventChannel       chan SEventMessage
+	swapSendChannel    chan schemas.SwapMessage
+	swapReceiveChannel chan schemas.SwapMessage
 
 	// Offer Details
-	receivingAmount   string
-	receivingCurrency string
-	sendingAmount     string
-	sendingCurrency   string
+	receivingAmount     string
+	receivingCurrency   string
+	sendingAmount       string
+	sendingCurrency     string
+	swapContractAddress string
 
 	swapHeight uint64
 
@@ -31,19 +35,24 @@ type ParticipantState struct {
 	peerProof   []byte
 }
 
-func NewParticipantState(offerDetails *schemas.OfferDetails, sendPeerChannel chan schemas.SwapMessage) *ParticipantState {
+func NewParticipantState(
+	offerDetails *schemas.OfferDetails,
+	swapSendChannel chan schemas.SwapMessage,
+	swapReceiveChannel chan schemas.SwapMessage,
+) *ParticipantState {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ParticipantState{
-		ctx:               ctx,
-		cancel:            cancel,
-		eventChannel:      make(chan SEventMessage),
-		sendPeerChannel:   sendPeerChannel,
-		receivingAmount:   offerDetails.ReceivingAmount,
-		receivingCurrency: offerDetails.ReceivingCurrency,
-		sendingAmount:     offerDetails.SendingAmount,
-		sendingCurrency:   offerDetails.SendingCurrency,
-		swapHeight:        0,
-		events:            []SEvents{},
+		ctx:                ctx,
+		cancel:             cancel,
+		eventChannel:       make(chan SEventMessage),
+		swapSendChannel:    swapSendChannel,
+		swapReceiveChannel: swapReceiveChannel,
+		receivingAmount:    offerDetails.ReceivingAmount,
+		receivingCurrency:  offerDetails.ReceivingCurrency,
+		sendingAmount:      offerDetails.SendingAmount,
+		sendingCurrency:    offerDetails.SendingCurrency,
+		swapHeight:         0,
+		events:             []SEvents{},
 	}
 }
 
@@ -103,7 +112,7 @@ func (s *ParticipantState) GetTransactionDetails(requestType TransactionRequestT
 }
 
 func (s *ParticipantState) handleSInit() error {
-	logger.Debug("SInit event handling started")
+	logger.Debug("[P] SInit event handling started")
 
 	// TODO: Check the balance of the participant to lock the funds
 
@@ -120,11 +129,11 @@ func (s *ParticipantState) handleSInit() error {
 	}
 	s.secret = secret
 	s.secretProof = proofData
-	s.sendPeerChannel <- schemas.SwapMessage{
+	s.swapSendChannel <- schemas.SwapMessage{
 		Type:    schemas.Secret,
 		Payload: s.secretProof,
 	}
-	peerMessage := <-s.sendPeerChannel
+	peerMessage := <-s.swapReceiveChannel
 	if peerMessage.Type != schemas.Secret {
 		logger.Error("Expected Secret message from peer")
 		return errors.New("invalid secret proof received")
@@ -136,18 +145,86 @@ func (s *ParticipantState) handleSInit() error {
 	return nil
 }
 
+func (s *ParticipantState) checkSwapContractRequirements() error {
+	storageKeys, err := mvx.GetContractStorageKeys(s.swapContractAddress)
+	if err != nil {
+		return err
+	}
+
+	// Check swap state
+	swapKey := hex.EncodeToString([]byte(SWAP_STATE_KEY))
+	if _, ok := storageKeys[swapKey]; ok {
+		return errors.New("swap state not new")
+	}
+
+	// Check refund commitment
+	refundKey := hex.EncodeToString([]byte(REFUND_COMMITMENT_KEY))
+	refundStorage, ok := storageKeys[refundKey]
+	if !ok {
+		return errors.New("refund commitment not found")
+	}
+	strRefundProof, _ := hex.DecodeString(refundStorage)
+	strPeerProof := hex.EncodeToString(s.peerProof)
+	if string(strRefundProof) != strPeerProof {
+		return errors.New("refund commitment mismatch")
+	}
+
+	// Check claim commitment
+	claimKey := hex.EncodeToString([]byte(CLAIM_COMMITMENT_KEY))
+	claimStorage, ok := storageKeys[claimKey]
+	if !ok {
+		return errors.New("claim commitment not found")
+	}
+	strClaimProof, _ := hex.DecodeString(claimStorage)
+	strSecretProof := hex.EncodeToString(s.secretProof)
+	if string(strClaimProof) != strSecretProof {
+		return errors.New("claim commitment mismatch")
+	}
+
+	return nil
+}
+
 func (s *ParticipantState) handleSInitDone() error {
-	logger.Debug("SInitDone event handling started")
-	peerMessage := <-s.sendPeerChannel
+	logger.Debug("[P] SInitDone event handling started")
+	peerMessage := <-s.swapReceiveChannel
 	if peerMessage.Type != schemas.ContractCreated {
-		logger.Error("Expected ContractCreated message from peer")
+		logger.Error(" [P] Expected ContractCreated message from peer")
 		return errors.New("invalid contract created message received")
 	}
+
+	logger.Debug(string(peerMessage.Payload))
+
+	var eventDataJson SLockedEGLDData
+	err := json.Unmarshal(peerMessage.Payload, &eventDataJson)
+	if err != nil {
+		logger.Error("Error unmarshalling SLockedEGLDData")
+		return err
+	}
+
+	transaction, err := mvx.GetTransactionResult(eventDataJson.TxHash)
+	if err != nil {
+		logger.Error("Error getting transaction result")
+		return err
+	}
+
+	result := transaction.SmartContractResults[0]
+	deployedContractAddress, err := mvx.ParseDeployResult(&result)
+	if err != nil {
+		logger.Error("Error parsing deploy result")
+		return err
+	}
+
+	s.swapContractAddress = deployedContractAddress
+	if err := s.checkSwapContractRequirements(); err != nil {
+		logger.Error("Checking smart contract failed:" + err.Error())
+		return err
+	}
+
 	s.eventChannel <- SEventMessage{Event: SLockedEGLD, Data: ""}
 	return nil
 }
 
 func (s *ParticipantState) handleSLockedEGLD() error {
-	logger.Debug("SLockedEGLD event handling started")
+	logger.Debug("[P] SLockedEGLD event handling started")
 	return nil
 }

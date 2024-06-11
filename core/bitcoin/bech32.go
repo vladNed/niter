@@ -138,7 +138,7 @@ func Decode(bechString string) (string, []int, error) {
 	return hrp, data[:len(data)-6], nil
 }
 
-func convertbits(data []int, frombits, tobits uint, pad bool) ([]int, error) {
+func Convertbits(data []int, frombits, tobits uint, pad bool) ([]int, error) {
 	acc := 0
 	bits := uint(0)
 	ret := []int{}
@@ -181,7 +181,7 @@ func SegwitAddrDecode(hrp, addr string) (int, []int, error) {
 	if data[0] > 16 {
 		return -1, nil, fmt.Errorf("invalid witness version : %d", data[0])
 	}
-	res, err := convertbits(data[1:], 5, 8, false)
+	res, err := Convertbits(data[1:], 5, 8, false)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -205,7 +205,7 @@ func SegwitAddrEncode(hrp string, version int, program []int) (string, error) {
 	if version == 0 && len(program) != 20 && len(program) != 32 {
 		return "", fmt.Errorf("invalid program length for witness version 0 (per BIP141) : %d", len(program))
 	}
-	data, err := convertbits(program, 8, 5, true)
+	data, err := Convertbits(program, 8, 5, true)
 	if err != nil {
 		return "", err
 	}

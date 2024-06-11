@@ -38,9 +38,10 @@ type Peer struct {
 	msgChannel        chan msgSchemas.Message
 
 	// Swap Data
-	ActiveOfferId string
-	swapChannel   chan msgSchemas.SwapMessage
-	SwapState     protocol.SwapState
+	ActiveOfferId      string
+	swapSendChannel    chan msgSchemas.SwapMessage
+	swapReceiveChannel chan msgSchemas.SwapMessage
+	SwapState          protocol.SwapState
 
 	// Context
 	ctx    context.Context
@@ -66,21 +67,22 @@ func NewPeer(
 		return nil, err
 	}
 	peer := &Peer{
-		LocalConnection:  nil,
-		DataChannel:      nil,
-		State:            protocol.PeerIdle,
-		KeyPair:          keyPair,
-		RemotePeer:       nil,
-		p2pEventsChannel: p2pEventsChannel,
-		swapEventsChannel: swapEventsChannel,
-		ActiveOfferId:    "",
-		msgChannel:       msgChannel,
-		SwapState:        nil,
-		ctx:              ctx,
-		cancel:           cancel,
-		swapChannel:      make(chan msgSchemas.SwapMessage),
-		btcWallet:        btcWallet,
-		mvxWallet:        mvxWallet,
+		LocalConnection:    nil,
+		DataChannel:        nil,
+		State:              protocol.PeerIdle,
+		KeyPair:            keyPair,
+		RemotePeer:         nil,
+		p2pEventsChannel:   p2pEventsChannel,
+		swapEventsChannel:  swapEventsChannel,
+		ActiveOfferId:      "",
+		msgChannel:         msgChannel,
+		SwapState:          nil,
+		ctx:                ctx,
+		cancel:             cancel,
+		swapSendChannel:    make(chan msgSchemas.SwapMessage),
+		swapReceiveChannel: make(chan msgSchemas.SwapMessage),
+		btcWallet:          btcWallet,
+		mvxWallet:          mvxWallet,
 	}
 	logger.Debug("Peer initialized")
 	go peer.MessageHandler()
@@ -129,20 +131,27 @@ func (p *Peer) StartResponder() error {
 
 // ResetPeer resets the peer to its initial state
 func (p *Peer) ResetPeer() {
-	p.LocalConnection = nil
-	p.DataChannel = nil
+	err := p.LocalConnection.Close()
+	if err != nil {
+		logger.Warn("[PEER] Error closing peer connection: ", err.Error())
+		return
+	}
 	p.State = protocol.PeerIdle
 	p.RemotePeer = nil
 	p.cancel()
+	p.swapReceiveChannel = make(chan msgSchemas.SwapMessage)
+	p.swapSendChannel = make(chan msgSchemas.SwapMessage)
 	p.ctx, p.cancel = context.WithCancel(context.Background())
+	if p.SwapState != nil {
+		logger.Debug("Closing swap state")
+		p.SwapState.Close()
+		p.SwapState = nil
+	}
 	go p.MessageHandler()
 }
 
 func (p *Peer) setupConnectionCallbacks() {
 	p.LocalConnection.OnConnectionStateChange(func(connectionState webrtc.PeerConnectionState) {
-		if p.State > protocol.PeerIdle {
-			return
-		}
 		switch connectionState {
 		case webrtc.PeerConnectionStateConnected:
 			logger.Debug("Peer connection state is connected")
@@ -156,6 +165,8 @@ func (p *Peer) setupConnectionCallbacks() {
 		case webrtc.PeerConnectionStateNew:
 			logger.Debug("Peer connection state is new")
 			p.State = protocol.PeerNegotiating
+		default:
+			logger.Warn("Unknown peer connection state", connectionState.String())
 		}
 	})
 	p.LocalConnection.OnICECandidate(func(candidate *webrtc.ICECandidate) {
@@ -246,31 +257,46 @@ func (p *Peer) peerAuthentication(msgData webrtc.DataChannelMessage) error {
 		return errors.New("offer not found")
 	}
 	go p.swapMessageHandler()
+	if p.SwapState != nil {
+		logger.Debug("Closing swap state")
+		p.SwapState.Close()
+		p.SwapState = nil
+	}
 	if offer.OfferDetails.SwapCreator == p.Id() {
 		if offer.OfferDetails.SendingCurrency == protocol.EGLD.String() {
 			p.SwapState = protocol.NewInitiatorState(
 				p.ctx,
 				&offer.OfferDetails,
-				p.swapChannel,
+				p.swapSendChannel,
+				p.swapReceiveChannel,
 				p.swapEventsChannel,
 				p.mvxWallet.Address,
 				true,
 			)
 		} else {
-			p.SwapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
+			p.SwapState = protocol.NewParticipantState(
+				&offer.OfferDetails,
+				p.swapSendChannel,
+				p.swapReceiveChannel,
+			)
 		}
 	} else {
 		if offer.OfferDetails.ReceivingCurrency == protocol.EGLD.String() {
 			p.SwapState = protocol.NewInitiatorState(
 				p.ctx,
 				&offer.OfferDetails,
-				p.swapChannel,
+				p.swapSendChannel,
+				p.swapReceiveChannel,
 				p.swapEventsChannel,
 				p.mvxWallet.Address,
 				false,
 			)
 		} else {
-			p.SwapState = protocol.NewParticipantState(&offer.OfferDetails, p.swapChannel)
+			p.SwapState = protocol.NewParticipantState(
+				&offer.OfferDetails,
+				p.swapSendChannel,
+				p.swapReceiveChannel,
+			)
 		}
 	}
 	p.SwapState.Start()
@@ -306,14 +332,13 @@ func (p *Peer) LocalDataChannelHandlers() {
 				go p.ResetPeer()
 				return
 			}
-			p.swapChannel <- *msgData
+			p.swapReceiveChannel <- *msgData
 		default:
 			logger.Warn("Unknown peer state 2")
 		}
 	})
 
 	dataChannel.OnClose(func() {
-		logger.Debug("[RECEIVING] Data channel closed")
 		p.DataChannel = nil
 	})
 
@@ -346,14 +371,13 @@ func (p *Peer) RemoteDataChannelHandlers() {
 					go p.ResetPeer()
 					return
 				}
-				p.swapChannel <- *msgData
+				p.swapReceiveChannel <- *msgData
 			default:
 				logger.Warn("Unknown peer state 3")
 			}
 		})
 
 		d.OnClose(func() {
-			logger.Debug("[RECEIVING] Data channel closed")
 			p.DataChannel = nil
 		})
 	})
@@ -362,12 +386,14 @@ func (p *Peer) RemoteDataChannelHandlers() {
 // The message handler listens for messages from the websocket connection
 // and processes them accordingly.
 func (p *Peer) MessageHandler() {
+	logger.Debug("Starting message handler")
 	for {
 		select {
 		case <-p.ctx.Done():
 			logger.Debug("Disconnecting peer message handler closed")
 			return
 		case signallingMessage := <-p.msgChannel:
+			logger.Debug("Received message")
 			switch msgType := signallingMessage.(type) {
 			case *msgSchemas.AnswerMessage:
 				p.SetOffer(msgType.AnswerSDP)
@@ -381,12 +407,13 @@ func (p *Peer) MessageHandler() {
 // The swap message handler listens for swap message from the swap state
 // manager and sends them to the remote peer.
 func (p *Peer) swapMessageHandler() {
+	logger.Debug("Starting swap message handler")
 	for {
 		select {
 		case <-p.ctx.Done():
 			logger.Debug("Swap message handler closed")
 			return
-		case swapCtxMessage := <-p.swapChannel:
+		case swapCtxMessage := <-p.swapSendChannel:
 			data := swapCtxMessage.Serialize()
 			err := p.SendData(data)
 			if err != nil {

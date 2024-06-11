@@ -72,6 +72,16 @@ func startWSClient() interface{} {
 	return nil
 }
 
+func resetPeer(this js.Value, args []js.Value) interface{} {
+	if isPeerInitialized() != nil {
+		return js.Global().Get("Error").New("Peer not initialized")
+	}
+
+	peer.ResetPeer()
+	logger.Debug("Peer reset")
+	return js.Undefined()
+}
+
 // Start webRTC connection
 func startPeerClient() interface{} {
 	newPeer, err := p2p.NewPeer(p2pEventsChannel, swapEventsChannel, msgChannel, btcWallet, mvxWallet)
@@ -420,42 +430,6 @@ func getWalletAddress(this js.Value, args []js.Value) interface{} {
 	return js.ValueOf(address)
 }
 
-func getPendingBroadcast(this js.Value, args []js.Value) interface{} {
-	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
-		resolve := inputs[0]
-		reject := inputs[1]
-
-		go func() {
-			pendingTx := txPool.Next()
-			if pendingTx == nil {
-				resolve.Invoke(js.ValueOf(nil))
-				reject.Invoke(js.Undefined())
-				return
-			}
-
-			txJson := pendingTx.Serialize()
-			resolve.Invoke(js.ValueOf(txJson))
-			reject.Invoke(js.Undefined())
-		}()
-
-		return nil
-	})
-
-	return js.Global().Get("Promise").New(handler)
-}
-
-func markPendingBroadcast(this js.Value, args []js.Value) interface{} {
-	if len(args) == 0 {
-		return js.Global().Get("Error").New("No arguments provided")
-	}
-
-	txQueueId := args[0].Int()
-	txPool.Mark()
-	txPoolSignal <- uint8(txQueueId)
-
-	return js.ValueOf(true)
-}
-
 func getSwapEvents(this js.Value, args []js.Value) interface{} {
 	handler := js.FuncOf(func(this js.Value, inputs []js.Value) interface{} {
 		resolve := inputs[0]
@@ -581,14 +555,11 @@ func main() {
 	jsGlobal.Set("wasmPollOffers", js.FuncOf(pollOffers))
 	jsGlobal.Set("wasmGetPeerState", js.FuncOf(getPeerState))
 	jsGlobal.Set("wasmSendData", js.FuncOf(wasmSendData))
+	jsGlobal.Set("wasmResetPeer", js.FuncOf(resetPeer))
 
 	// Wallet
 	jsGlobal.Set("wasmInitWallet", js.FuncOf(initWallet))
 	jsGlobal.Set("wasmGetWalletAddress", js.FuncOf(getWalletAddress))
-
-	// Events
-	jsGlobal.Set("wasmGetPendingBroadcast", js.FuncOf(getPendingBroadcast))
-	jsGlobal.Set("wasmMarkPendingBroadcast", js.FuncOf(markPendingBroadcast))
 
 	// Swap
 	jsGlobal.Set("wasmGetSwapEvents", js.FuncOf(getSwapEvents))

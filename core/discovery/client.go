@@ -63,9 +63,7 @@ func (ws *WSClient) listen() error {
 			return nil
 		}
 		logger.Debug("Received message")
-		if shouldExit := ws.handleRecvMessages(msg); shouldExit {
-			return nil
-		}
+		ws.handleRecvMessages(msg)
 	}
 }
 
@@ -104,8 +102,7 @@ func (ws *WSClient) recv() (schemas.Message, error) {
 	return message, nil
 }
 
-func (ws *WSClient) handleRecvMessages(msg schemas.Message) bool {
-	shouldExit := false
+func (ws *WSClient) handleRecvMessages(msg schemas.Message) {
 	switch msgType := msg.(type) {
 	case *schemas.OfferMessage:
 		logger.Debug("Received offer message")
@@ -113,14 +110,11 @@ func (ws *WSClient) handleRecvMessages(msg schemas.Message) bool {
 	case *schemas.AnswerMessage:
 		logger.Debug("Received answer message")
 		ws.msgChannel <- msg
-		shouldExit = true
 	default:
 		logger.Warn("Unknown message type")
 	}
-
-	return shouldExit
 }
 
 func (ws *WSClient) Close() {
-	ws.conn.Close(websocket.StatusNormalClosure, "Closed by client")
+	// ws.conn.Close(websocket.StatusNormalClosure, "Closed by client")
 }

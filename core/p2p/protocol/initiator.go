@@ -18,10 +18,11 @@ var logger = logging.NewLogger(config.Config.LogLevel)
 type InitiatorState struct {
 
 	// Managing the state of the Initiator
-	ctx             context.Context
-	cancel          context.CancelFunc
-	eventChannel    chan SEventMessage
-	sendPeerChannel chan schemas.SwapMessage
+	ctx                context.Context
+	cancel             context.CancelFunc
+	eventChannel       chan SEventMessage
+	swapSendChannel    chan schemas.SwapMessage
+	swapReceiveChannel chan schemas.SwapMessage
 
 	mvxAddress string
 
@@ -44,7 +45,8 @@ type InitiatorState struct {
 func NewInitiatorState(
 	peerContext context.Context,
 	offerDetails *schemas.OfferDetails,
-	sendPeerChannel chan schemas.SwapMessage,
+	swapSendChannel chan schemas.SwapMessage,
+	swapReceiveChannel chan schemas.SwapMessage,
 	swapEventsChannel chan SEventMessage,
 	mvxAddress string,
 	isCreator bool,
@@ -54,7 +56,8 @@ func NewInitiatorState(
 		ctx:               ctx,
 		cancel:            cancel,
 		eventChannel:      swapEventsChannel,
-		sendPeerChannel:   sendPeerChannel,
+		swapSendChannel:   swapSendChannel,
+		swapReceiveChannel: swapReceiveChannel,
 		receivingAmount:   offerDetails.ReceivingAmount,
 		receivingCurrency: offerDetails.ReceivingCurrency,
 		sendingAmount:     offerDetails.SendingAmount,
@@ -97,8 +100,6 @@ func (i *InitiatorState) handleSwapEvent(event SEvents, eventData string) {
 		if err != nil {
 			i.eventChannel <- SEventMessage{Event: SFailed, Data: ""}
 		}
-	default:
-		logger.Debug("InitiatorState: Unknown event")
 	}
 }
 
@@ -183,11 +184,11 @@ func (i *InitiatorState) handleSInit() error {
 	}
 	i.secret = secret
 	i.secretProof = proofData
-	i.sendPeerChannel <- schemas.SwapMessage{
+	i.swapSendChannel <- schemas.SwapMessage{
 		Type:    schemas.Secret,
 		Payload: proofData,
 	}
-	peerMessage := <-i.sendPeerChannel
+	peerMessage := <-i.swapReceiveChannel
 	if peerMessage.Type != schemas.Secret {
 		logger.Error("Invalid message type received")
 		return errors.New("invalid message type received")
@@ -199,7 +200,6 @@ func (i *InitiatorState) handleSInit() error {
 
 func (i *InitiatorState) handleSInitDone() error {
 	logger.Debug("SInitDone event handling started")
-
 	return nil
 }
 
@@ -209,8 +209,9 @@ func (i *InitiatorState) handleSLockedEGLD(eventData string) error {
 		logger.Error("Error decoding event data")
 		return err
 	}
+	logger.Debug(string(eventDataDecoded))
 
-	i.sendPeerChannel <- schemas.SwapMessage{
+	i.swapSendChannel <- schemas.SwapMessage{
 		Type:    schemas.ContractCreated,
 		Payload: eventDataDecoded,
 	}

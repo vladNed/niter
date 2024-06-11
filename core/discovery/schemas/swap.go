@@ -18,7 +18,8 @@ type SwapMessage struct {
 }
 
 func (s *SwapMessage) Serialize() []byte {
-	data := make([]byte, 32)
+	payloadLen := len(s.Payload)
+	data := make([]byte, 2 + payloadLen)
 
 	buf := make([]byte, 2)
 	binary.BigEndian.PutUint16(buf, uint16(s.Type))
