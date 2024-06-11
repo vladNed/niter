@@ -66,7 +66,6 @@ func (c *Client) handleMessage(message []byte) {
 	}
 	switch messageRequest := messageRequest.(type) {
 	case *CreateOfferRequest:
-		c.state = OfferCreated
 		cache.MemcacheInstance.Set(messageRequest.OfferID, c, message)
 		broadcastMessage := BroadcastMessage{
 			Channel: MarketplaceChannel,
@@ -93,7 +92,6 @@ func (c *Client) handleMessage(message []byte) {
 		}
 		cl := client.(*Client)
 		cl.WriteStream(message)
-		c.state = OfferAccepted
 	default:
 		logger.Error("Invalid message type")
 	}
